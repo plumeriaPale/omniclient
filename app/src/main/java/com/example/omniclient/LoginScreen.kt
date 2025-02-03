@@ -91,7 +91,7 @@ fun LoginScreen(
                     onValueChange = { username = it },
                     label = { Text("Логин") },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CustomColorsTextField()
+                    colors = customColorsTextField()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 TextField(
@@ -100,7 +100,7 @@ fun LoginScreen(
                     label = { Text("Пароль") },
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CustomColorsTextField()
+                    colors = customColorsTextField()
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -125,7 +125,7 @@ fun LoginScreen(
 }
 
 @Composable
-fun CustomColorsTextField() : TextFieldColors{
+fun customColorsTextField() : TextFieldColors{
     return TextFieldDefaults.colors(
         focusedContainerColor = Color(0xFFFFFBFE),
         unfocusedContainerColor = Color(0xFFFFFBFE),

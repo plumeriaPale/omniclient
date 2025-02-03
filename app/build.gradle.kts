@@ -58,6 +58,7 @@ dependencies {
     implementation (libs.accompanist.pager)
     implementation (libs.accompanist.pager.indicators)
     implementation (libs.androidx.preference.ktx)
+    implementation ("com.google.accompanist:accompanist-systemuicontroller:0.36.0")
 
     implementation(libs.androidx.navigation.compose)
 
