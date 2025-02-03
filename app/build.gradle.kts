@@ -50,14 +50,14 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-    implementation("com.squareup.okhttp3:okhttp:4.9.3")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.9.3")
-    implementation("org.jsoup:jsoup:1.15.3")
-    implementation ("com.google.accompanist:accompanist-pager:0.24.6-alpha")
-    implementation ("com.google.accompanist:accompanist-pager-indicators:0.24.6-alpha")
-
+    implementation(libs.retrofit)
+    implementation(libs.converter.gson)
+    implementation(libs.okhttp)
+    implementation(libs.logging.interceptor)
+    implementation(libs.jsoup)
+    implementation (libs.accompanist.pager)
+    implementation (libs.accompanist.pager.indicators)
+    implementation (libs.androidx.preference.ktx)
 
     implementation(libs.androidx.navigation.compose)
 
