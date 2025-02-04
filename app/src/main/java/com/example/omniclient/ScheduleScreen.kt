@@ -11,8 +11,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
+import androidx.navigation.NavController
 
 import com.example.omniclient.api.*
 import com.google.accompanist.pager.ExperimentalPagerApi
@@ -22,38 +26,53 @@ import com.google.accompanist.pager.rememberPagerState
 
 @OptIn(ExperimentalPagerApi::class)
 @Composable
-fun ScheduleScreen(schedule: ScheduleResponse) {
+fun ScheduleScreen(schedule: ScheduleResponse, navController: NavController) {
     val daysOfWeek = schedule.days.values.toList()
     val currentDayOfWeek = getCurrentDayOfWeek(schedule.curdate)
     val initialPage = daysOfWeek.indexOf(currentDayOfWeek)
 
     val pagerState = rememberPagerState(initialPage = initialPage)
 
-    HorizontalPager(
-        count = daysOfWeek.size,
-        state = pagerState,
-        modifier = Modifier.fillMaxSize()
-    ) { page ->
-        val dayOfWeek = daysOfWeek[page]
-        val lessons = getLessonsForDay(schedule, dayOfWeek)
+    Scaffold(
+        topBar = {
+            TopAppBarComponent(
+                title = "Расписание",
+                onLogoutClick = {navController.navigate("login")},
+                navController = navController,
+            )
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-            item { Text(text = "Расписание на $dayOfWeek") }
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-            item { if (lessons.isEmpty()) {
-                Text(text = "Пар нет")
-            } else {
-                lessons.sortedBy { lessons -> lessons.lenta }.forEach { lesson ->
-                    LessonCard(lesson)
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-            } }
+        },
+    ){
+        innerPadding ->
+        HorizontalPager(
+            count = daysOfWeek.size,
+            state = pagerState,
+            modifier = Modifier.fillMaxSize().padding(innerPadding)
+        ) { page ->
+            val dayOfWeek = daysOfWeek[page]
+            val lessons = getLessonsForDay(schedule, dayOfWeek)
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                item { Text(text = "Расписание на $dayOfWeek") }
+                item { Spacer(modifier = Modifier.height(16.dp)) }
+                item { if (lessons.isEmpty()) {
+                    Text(text = "Пар нет")
+                } else {
+                    lessons.sortedBy { lessons -> lessons.lenta }.forEach { lesson ->
+                        LessonCard(lesson)
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                } }
+            }
         }
     }
+
+
+
 }
 
 @Composable
