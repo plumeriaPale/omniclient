@@ -141,16 +141,16 @@ fun TopAppBarComponent(title: String, onLogoutClick: () -> Unit, navController: 
     TopAppBar(
         title = { Text(text = title) },
         backgroundColor = MaterialTheme.colorScheme.background,
-        contentColor = Color.Red,
+        contentColor = Color(0xFFDB173F),
         elevation = 0.dp,
         navigationIcon = {
             IconButton(onClick = { navController.popBackStack() }) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = Color.Red)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = Color(0xFFDB173F))
             }
         },
         actions = {
             IconButton(onClick = onLogoutClick) {
-                Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Выход", tint = Color.Red)
+                Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Выход", tint = Color(0xFFDB173F))
             }
         },
         modifier = Modifier.statusBarsPadding()
