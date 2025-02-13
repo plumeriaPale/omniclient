@@ -16,8 +16,6 @@ import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -122,9 +120,7 @@ fun MyApp() {
             schedule?.let {
                 ScheduleScreen(it, navController)
             } ?: run {
-                Column {
-                    Text(text = "Ошибка получения расписания")
-                }
+                navController.navigate("login")
             }
         }
     }
