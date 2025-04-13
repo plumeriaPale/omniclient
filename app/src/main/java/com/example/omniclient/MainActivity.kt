@@ -132,27 +132,6 @@ fun MyApp() {
     }
 }
 
-@Composable
-fun TopAppBarComponent(title: String, onLogoutClick: () -> Unit, navController: NavController) {
-    TopAppBar(
-        title = { Text(text = title) },
-        backgroundColor = MaterialTheme.colorScheme.background,
-        contentColor = Color(0xFFDB173F),
-        elevation = 0.dp,
-        navigationIcon = {
-            IconButton(onClick = { navController.popBackStack() }) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = Color(0xFFDB173F))
-            }
-        },
-        actions = {
-            IconButton(onClick = onLogoutClick) {
-                Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Выход", tint = Color(0xFFDB173F))
-            }
-        },
-        modifier = Modifier.statusBarsPadding()
-    )
-}
-
 suspend fun fetchSchedule(csrfToken: String): ScheduleResponse? {
     return try {
         val request = ScheduleRequest(week = 0)

@@ -39,6 +39,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.sp
 import com.example.omniclient.api.MyCookieJar
 import com.example.omniclient.api.okHttpClient
+import com.example.omniclient.components.customColorsTextField
 import com.example.omniclient.preferences.AuthPreferences
 
 //Накинуть Scaffold и отображать CircularProgressIndicator поверх ввода и добавить блюр на всю остальную область
@@ -124,20 +125,3 @@ fun LoginScreen(
     }
 }
 
-@Composable
-fun customColorsTextField() : TextFieldColors{
-    return TextFieldDefaults.colors(
-        focusedContainerColor = Color(0xFFFFFBFE),
-        unfocusedContainerColor = Color(0xFFFFFBFE),
-        focusedTextColor = Color.Black,
-        unfocusedTextColor = Color.Black,
-        cursorColor = Color(0xFFDB173F),
-        focusedIndicatorColor = Color(0xFFDB173F),
-        focusedLabelColor = Color(0xFFDB173F),
-        unfocusedLabelColor = Color.Black,
-        selectionColors = TextSelectionColors(
-            handleColor = Color(0xFFDB173F),
-            backgroundColor = Color(0xFFDB173F).copy(alpha = 0.4f)
-        )
-    )
-}
