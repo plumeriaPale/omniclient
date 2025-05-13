@@ -1,49 +1,37 @@
 package com.example.omniclient
 
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
-import androidx.compose.material.TopAppBar
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.omniclient.api.LoginFormData
-import com.example.omniclient.api.LoginRequest
 import com.example.omniclient.api.MyCookieJar
 import com.example.omniclient.api.ScheduleRequest
 import com.example.omniclient.api.ScheduleResponse
 import com.example.omniclient.api.apiService
-import com.example.omniclient.api.initializeCsrfToken
 import com.example.omniclient.api.okHttpClient
+import com.example.omniclient.ui.login.LoginScreen
+import com.example.omniclient.ui.schedule.ScheduleScreen
+import com.example.omniclient.ui.schedule.changeCity
+import com.example.omniclient.ui.schedule.mergeSchedules
 import com.example.omniclient.ui.theme.OMNIClientTheme
-import kotlinx.coroutines.launch
+import com.example.omniclient.viewmodels.LoginViewModel
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 
@@ -71,56 +59,62 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MyApp() {
-    var isLoggedIn by remember { mutableStateOf(false) }
-    var responseText by remember { mutableStateOf("") }
-    var schedule by remember { mutableStateOf<ScheduleResponse?>(null) }
-    var isLoading by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    val loginViewModel = remember {
+        LoginViewModel(context, apiService)
+    }
 
     val navController = rememberNavController()
+
+    val username by loginViewModel.username.collectAsState()
+    val password by loginViewModel.password.collectAsState()
+    val isLoading by loginViewModel.isLoading.collectAsState()
+    val responseText by loginViewModel.responseText.collectAsState()
+    val schedule by loginViewModel.schedule.collectAsState()
+    val isLoggedIn by loginViewModel.isLoggedIn.collectAsState()
+    val csrfToken by loginViewModel.csrfToken.collectAsState()
+
+    LaunchedEffect(isLoggedIn, csrfToken) {
+        if (isLoggedIn && csrfToken != null) {
+            navController.navigate("schedule") {
+                popUpTo("login") { inclusive = true }
+            }
+        }
+    }
+
 
     NavHost(navController, startDestination = "login") {
         composable("login") {
             LoginScreen(
+                username = username,
+                onUsernameChange = loginViewModel::onUsernameChange,
+                password = password,
+                onPasswordChange = loginViewModel::onPasswordChange,
                 isLoading = isLoading,
-                onLogin = { username, password ->
-                    coroutineScope.launch {
-                        isLoading = true
-                        val request = LoginRequest(LoginFormData(username = username, password = password))
-                        try {
-                            val response = apiService.login(request)
-                            if (response.isSuccessful) {
-                                Log.d("AuthResponseBody", response.toString())
-                                isLoggedIn = true
-                                responseText = "Успешная авторизация!"
-
-                                val csrfToken = initializeCsrfToken()
-                                Log.d("SecondToken", csrfToken.toString())
-                                if (csrfToken != null) {
-                                    schedule = fetchCombinedSchedule(csrfToken)
-                                    navController.navigate("schedule")
-                                } else {
-                                    responseText = "Не удалось получить CSRF-токен"
-                                }
-                            } else {
-                                responseText = "Ошибка: ${response.code()} - ${response.message()}"
-                            }
-                        } catch (e: Exception) {
-                            responseText = "Ошибка: ${e.message}"
-                        } finally {
-                            isLoading = false
-                        }
+                onLogin = {
+                    loginViewModel.login {
+                        navController.navigate("schedule")
                     }
-                }, context = context
+                }
             )
         }
-
         composable("schedule") {
-            schedule?.let {
-                ScheduleScreen(it, navController)
-            } ?: run {
-                navController.navigate("login")
+            val currentCsrfToken = csrfToken
+            if (currentCsrfToken != null) {
+                ScheduleScreen(
+                    navController = navController,
+                    apiService = apiService,
+                    csrfToken = currentCsrfToken
+                )
+            } else {
+                LaunchedEffect(Unit) {
+                    navController.navigate("login") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                }
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Ошибка: CSRF-токен не найден. Возврат на экран входа...")
+                }
             }
         }
     }
@@ -131,6 +125,7 @@ fun MyApp() {
         }
     }
 }
+
 
 suspend fun fetchSchedule(csrfToken: String): ScheduleResponse? {
     return try {
