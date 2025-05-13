@@ -45,6 +45,7 @@ import com.example.omniclient.components.TopAppBarComponent
 import com.example.omniclient.viewmodels.ScheduleViewModel
 import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
+//import com.google.accompanist.pager.HorizontalPager
 import com.google.accompanist.pager.rememberPagerState
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -80,15 +81,6 @@ fun ScheduleScreen(
     val currentDayIndex by viewModel.currentDayIndex.collectAsState()
 
     val daysOfWeek = viewModel.getDaysOfWeek()
-    val pagerState = rememberPagerState(initialPage = currentDayIndex)
-    LaunchedEffect(pagerState.currentPage) {
-        viewModel.onDaySelected(pagerState.currentPage)
-    }
-    LaunchedEffect(currentDayIndex) {
-        if (pagerState.currentPage != currentDayIndex) {
-            pagerState.animateScrollToPage(currentDayIndex)
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -125,6 +117,15 @@ fun ScheduleScreen(
                     }
                 }
                 schedule != null -> {
+                    val pagerState = rememberPagerState(initialPage = currentDayIndex)
+                    LaunchedEffect(pagerState.currentPage) {
+                        viewModel.onDaySelected(pagerState.currentPage)
+                    }
+                    LaunchedEffect(currentDayIndex) {
+                        if (pagerState.currentPage != currentDayIndex) {
+                            pagerState.animateScrollToPage(currentDayIndex)
+                        }
+                    }
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -146,12 +147,12 @@ fun ScheduleScreen(
                     HorizontalPager(
                         count = daysOfWeek.size,
                         state = pagerState,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
                     ) { page ->
                         val dayOfWeek = daysOfWeek.getOrNull(page)
                         if (dayOfWeek != null) {
-
                             val lessons = viewModel.getLessonsForCurrentDay()
+
 
                             LazyColumn(
                                 modifier = Modifier
@@ -189,7 +190,7 @@ fun ScheduleScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Загрузка расписания...")
+                        CircularProgressIndicator(color = Color.Red, strokeWidth = 4.dp)
                     }
                 }
             }

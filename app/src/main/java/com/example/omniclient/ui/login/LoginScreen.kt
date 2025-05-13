@@ -1,5 +1,6 @@
 package com.example.omniclient.ui.login
 
+import android.util.Log
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -35,6 +36,7 @@ fun LoginScreen(
     isLoading: Boolean,
     onLogin: () -> Unit
 ) {
+
     Column(
         modifier = Modifier
             .fillMaxSize()

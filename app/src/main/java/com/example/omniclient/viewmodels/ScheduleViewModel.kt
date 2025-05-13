@@ -1,5 +1,6 @@
 package com.example.omniclient.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.omniclient.api.ApiService
@@ -17,6 +18,7 @@ class ScheduleViewModel(
     private val apiService: ApiService,
     private val csrfToken: String
 ) : ViewModel() {
+
 
     private val _schedule = MutableStateFlow<ScheduleResponse?>(null)
     val schedule: StateFlow<ScheduleResponse?> = _schedule.asStateFlow()
@@ -54,6 +56,17 @@ class ScheduleViewModel(
             } finally {
                 _isLoading.value = false
             }
+        }
+    }
+
+    fun getLessonsForDayAtIndex(index: Int): List<Lesson> {
+        val daysOfWeek = getDaysOfWeek()
+        val dayOfWeek = daysOfWeek.getOrNull(index)
+
+        return if (dayOfWeek != null && _schedule.value != null) {
+            getLessonsForDay(_schedule.value!!, dayOfWeek)
+        } else {
+            emptyList()
         }
     }
 
