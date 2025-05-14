@@ -44,9 +44,10 @@ import com.example.omniclient.api.*
 import com.example.omniclient.components.TopAppBarComponent
 import com.example.omniclient.viewmodels.ScheduleViewModel
 import com.google.accompanist.pager.ExperimentalPagerApi
-import com.google.accompanist.pager.HorizontalPager
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 //import com.google.accompanist.pager.HorizontalPager
-import com.google.accompanist.pager.rememberPagerState
+//import com.google.accompanist.pager.rememberPagerState
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -81,119 +82,135 @@ fun ScheduleScreen(
     val currentDayIndex by viewModel.currentDayIndex.collectAsState()
 
     val daysOfWeek = viewModel.getDaysOfWeek()
-    val pagerState = rememberPagerState(initialPage = currentDayIndex)
-    LaunchedEffect(pagerState.currentPage) {
-        viewModel.onDaySelected(pagerState.currentPage)
-    }
-    LaunchedEffect(currentDayIndex) {
-        if (pagerState.currentPage != currentDayIndex) {
-            pagerState.animateScrollToPage(currentDayIndex)
+    val isDataReady = currentDayIndex >= 0 && schedule != null
+
+    if (isDataReady) {
+        val pagerState = rememberPagerState(
+            initialPage = currentDayIndex,
+            initialPageOffsetFraction = 0f,
+            pageCount = { daysOfWeek.size }
+        )
+
+        LaunchedEffect(pagerState.currentPage) {
+            viewModel.onDaySelected(pagerState.currentPage)
         }
-    }
 
-    Scaffold(
-        topBar = {
-            TopAppBarComponent(
-                title = "Расписание",
-                onLogoutClick = {navController.navigate("login")},
-                navController = navController,
-            )
+        LaunchedEffect(currentDayIndex) {
+            if (pagerState.currentPage != currentDayIndex) {
+                pagerState.scrollToPage(currentDayIndex)
+            }
+        }
 
-        },
-    ){
-        innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
+        Scaffold(
+            topBar = {
+                TopAppBarComponent(
+                    title = "Расписание",
+                    onLogoutClick = {navController.navigate("login")},
+                    navController = navController,
+                )
+
+            },
         ){
-            when {
-                isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = Color.Red, strokeWidth = 4.dp)
-                    }
-                }
-                errorMessage != null -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = errorMessage ?: "Неизвестная ошибка", color = MaterialTheme.colorScheme.error)
-                    }
-                }
-                schedule != null -> {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp, bottom = 16.dp),
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        repeat(daysOfWeek.size) { iteration ->
-                            val color = if (pagerState.currentPage == iteration) Color(0xFFDB173F) else Color.LightGray
-                            Box(
-                                modifier = Modifier
-                                    .padding(horizontal = 2.dp)
-                                    .background(color, RectangleShape)
-                                    .weight(1f)
-                                    .height(2.dp)
-                            )
+            innerPadding ->
+            Column(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+            ){
+                when {
+                    isLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = Color.Red, strokeWidth = 4.dp)
                         }
                     }
+                    errorMessage != null -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = errorMessage ?: "Неизвестная ошибка", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                    schedule != null -> {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp, bottom = 16.dp),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            repeat(daysOfWeek.size) { iteration ->
+                                val color = if (pagerState.currentPage == iteration) Color(0xFFDB173F) else Color.LightGray
+                                Box(
+                                    modifier = Modifier
+                                        .padding(horizontal = 2.dp)
+                                        .background(color, RectangleShape)
+                                        .weight(1f)
+                                        .height(2.dp)
+                                )
+                            }
+                        }
 
-                    HorizontalPager(
-                        count = daysOfWeek.size,
-                        state = pagerState,
-                        modifier = Modifier.fillMaxSize(),
-                    ) { page ->
-                        val dayOfWeek = daysOfWeek.getOrNull(page)
-                        if (dayOfWeek != null) {
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxSize(),
+                            beyondViewportPageCount = 1
+                        ) { page ->
+                            val dayOfWeek = daysOfWeek.getOrNull(page)
+                            if (dayOfWeek != null) {
+                                val lessons = viewModel.getLessonsForDayAtIndex(page)
 
-                            val lessons = viewModel.getLessonsForCurrentDay()
-
-                            LazyColumn(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = 16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                item { Text(text = dayOfWeek) }
-                                item { Spacer(modifier = Modifier.height(12.dp)) }
-                                if (lessons.isEmpty()) {
-                                    item { Text(text = "Пар нет") }
-                                } else {
-                                    items(lessons.sortedBy { it.lenta }) { lesson ->
-                                        LessonCard(
-                                            lesson,
-                                            onPresentClick = {clickedLesson -> Log.d("ScheduleScreen", "${clickedLesson.name_spec}")},
-                                            onMaterialsClick = {clickedLesson -> Log.d("ScheduleScreen", "${clickedLesson.name_spec}")}
-                                        )
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    item { Text(text = dayOfWeek) }
+                                    item { Spacer(modifier = Modifier.height(12.dp)) }
+                                    if (lessons.isEmpty()) {
+                                        item { Text(text = "Пар нет") }
+                                    } else {
+                                        items(lessons.sortedBy { it.lenta }) { lesson ->
+                                            LessonCard(
+                                                lesson,
+                                                onPresentClick = {clickedLesson -> Log.d("ScheduleScreen", "${clickedLesson.name_spec}")},
+                                                onMaterialsClick = {clickedLesson -> Log.d("ScheduleScreen", "${clickedLesson.name_spec}")}
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                        }
                                     }
                                 }
-                            }
-                        } else {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("День не найден")
+                            } else {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("День не найден")
+                                }
                             }
                         }
                     }
-                }
-                else -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("Загрузка расписания...")
+                    else -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Загрузка расписания...")
+                        }
                     }
                 }
             }
+        }
+    } else {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = Color.Red, strokeWidth = 4.dp)
         }
     }
 }

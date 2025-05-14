@@ -81,6 +81,7 @@ class ScheduleViewModel(
     }
 
     fun getLessonsForCurrentDay(): List<Lesson> {
+        Log.d("getLessonsForCurrentDay", "Start")
         val currentDayOfWeek = getDaysOfWeek().getOrNull(_currentDayIndex.value)
         return if (currentDayOfWeek != null && _schedule.value != null) {
             getLessonsForDay(_schedule.value!!, currentDayOfWeek)
