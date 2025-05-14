@@ -81,6 +81,15 @@ fun ScheduleScreen(
     val currentDayIndex by viewModel.currentDayIndex.collectAsState()
 
     val daysOfWeek = viewModel.getDaysOfWeek()
+    val pagerState = rememberPagerState(initialPage = currentDayIndex)
+    LaunchedEffect(pagerState.currentPage) {
+        viewModel.onDaySelected(pagerState.currentPage)
+    }
+    LaunchedEffect(currentDayIndex) {
+        if (pagerState.currentPage != currentDayIndex) {
+            pagerState.animateScrollToPage(currentDayIndex)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -117,15 +126,6 @@ fun ScheduleScreen(
                     }
                 }
                 schedule != null -> {
-                    val pagerState = rememberPagerState(initialPage = currentDayIndex)
-                    LaunchedEffect(pagerState.currentPage) {
-                        viewModel.onDaySelected(pagerState.currentPage)
-                    }
-                    LaunchedEffect(currentDayIndex) {
-                        if (pagerState.currentPage != currentDayIndex) {
-                            pagerState.animateScrollToPage(currentDayIndex)
-                        }
-                    }
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -151,8 +151,8 @@ fun ScheduleScreen(
                     ) { page ->
                         val dayOfWeek = daysOfWeek.getOrNull(page)
                         if (dayOfWeek != null) {
-                            val lessons = viewModel.getLessonsForCurrentDay()
 
+                            val lessons = viewModel.getLessonsForCurrentDay()
 
                             LazyColumn(
                                 modifier = Modifier
@@ -190,7 +190,7 @@ fun ScheduleScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = Color.Red, strokeWidth = 4.dp)
+                        Text("Загрузка расписания...")
                     }
                 }
             }

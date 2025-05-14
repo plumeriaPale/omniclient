@@ -34,9 +34,11 @@ class ScheduleViewModel(
 
     init {
         loadSchedule()
+        Log.d("Schedule", "Navigate")
     }
 
     private fun loadSchedule() {
+        Log.d("Schedule", "Navigate")
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
