@@ -46,11 +46,11 @@ import com.example.omniclient.viewmodels.ScheduleViewModel
 import com.google.accompanist.pager.ExperimentalPagerApi
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-//import com.google.accompanist.pager.HorizontalPager
-//import com.google.accompanist.pager.rememberPagerState
+import androidx.compose.runtime.snapshotFlow
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import kotlinx.coroutines.flow.first
 
 class ScheduleViewModelFactory(
     private val apiService: ApiService,
@@ -82,22 +82,42 @@ fun ScheduleScreen(
     val currentDayIndex by viewModel.currentDayIndex.collectAsState()
 
     val daysOfWeek = viewModel.getDaysOfWeek()
+    val daysWithFakes = listOf("fakePrev") + daysOfWeek + listOf("fakeNext")
     val isDataReady = currentDayIndex >= 0 && schedule != null
 
     if (isDataReady) {
         val pagerState = rememberPagerState(
-            initialPage = currentDayIndex,
+            initialPage = currentDayIndex + 1,
             initialPageOffsetFraction = 0f,
-            pageCount = { daysOfWeek.size }
+            pageCount = { daysWithFakes.size }
         )
 
+        
+        LaunchedEffect(viewModel.currentWeek) {
+            viewModel.preloadPreviousWeek()
+            viewModel.preloadNextWeek()
+        }
+
         LaunchedEffect(pagerState.currentPage) {
-            viewModel.onDaySelected(pagerState.currentPage)
+            when (pagerState.currentPage) {
+                0 -> {
+                    viewModel.loadPreviousWeek(setDayIndex = viewModel.getDaysOfWeek().lastIndex)
+                    snapshotFlow { viewModel.schedule.value }.first { it != null }
+                }
+                daysWithFakes.lastIndex -> {
+                    viewModel.loadNextWeek(setDayIndex = 0)
+                    snapshotFlow { viewModel.schedule.value }.first { it != null }
+                }
+                else -> {
+                    viewModel.onDaySelected(pagerState.currentPage - 1)
+                }
+            }
         }
 
         LaunchedEffect(currentDayIndex) {
-            if (pagerState.currentPage != currentDayIndex) {
-                pagerState.scrollToPage(currentDayIndex)
+            val targetPage = currentDayIndex + 1
+            if (pagerState.currentPage != targetPage) {
+                pagerState.scrollToPage(targetPage)
             }
         }
 
@@ -108,7 +128,6 @@ fun ScheduleScreen(
                     onLogoutClick = {navController.navigate("login")},
                     navController = navController,
                 )
-
             },
         ){
             innerPadding ->
@@ -143,7 +162,7 @@ fun ScheduleScreen(
                             horizontalArrangement = Arrangement.Center
                         ) {
                             repeat(daysOfWeek.size) { iteration ->
-                                val color = if (pagerState.currentPage == iteration) Color(0xFFDB173F) else Color.LightGray
+                                val color = if (pagerState.currentPage == iteration + 1) Color(0xFFDB173F) else Color.LightGray
                                 Box(
                                     modifier = Modifier
                                         .padding(horizontal = 2.dp)
@@ -159,37 +178,50 @@ fun ScheduleScreen(
                             modifier = Modifier.fillMaxSize(),
                             beyondViewportPageCount = 1
                         ) { page ->
-                            val dayOfWeek = daysOfWeek.getOrNull(page)
-                            if (dayOfWeek != null) {
-                                val lessons = viewModel.getLessonsForDayAtIndex(page)
-
-                                LazyColumn(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    item { Text(text = dayOfWeek) }
-                                    item { Spacer(modifier = Modifier.height(12.dp)) }
-                                    if (lessons.isEmpty()) {
-                                        item { Text(text = "Пар нет") }
-                                    } else {
-                                        items(lessons.sortedBy { it.lenta }) { lesson ->
-                                            LessonCard(
-                                                lesson,
-                                                onPresentClick = {clickedLesson -> Log.d("ScheduleScreen", "${clickedLesson.name_spec}")},
-                                                onMaterialsClick = {clickedLesson -> Log.d("ScheduleScreen", "${clickedLesson.name_spec}")}
-                                            )
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                        }
+                            when (page) {
+                                0, daysWithFakes.lastIndex -> {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(color = Color.Red, strokeWidth = 4.dp)
                                     }
                                 }
-                            } else {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("День не найден")
+                                else -> {
+                                    val dayOfWeek = daysOfWeek.getOrNull(page - 1)
+                                    if (dayOfWeek != null) {
+                                        val lessons = viewModel.getLessonsForDayAtIndex(page - 1)
+                                        LazyColumn(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(horizontal = 16.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            item {
+                                                Text(text = viewModel.getDisplayDayWithDate(page - 1))
+                                            }
+                                            item { Spacer(modifier = Modifier.height(12.dp)) }
+                                            if (lessons.isEmpty()) {
+                                                item { Text(text = "Пар нет") }
+                                            } else {
+                                                items(lessons.sortedBy { it.lenta }) { lesson ->
+                                                    LessonCard(
+                                                        lesson,
+                                                        onPresentClick = {clickedLesson -> Log.d("ScheduleScreen", "${clickedLesson.name_spec}")},
+                                                        onMaterialsClick = {clickedLesson -> Log.d("ScheduleScreen", "${clickedLesson.name_spec}")}
+                                                    )
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("День не найден")
+                                        }
+                                    }
                                 }
                             }
                         }

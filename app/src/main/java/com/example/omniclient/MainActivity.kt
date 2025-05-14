@@ -128,13 +128,13 @@ fun MyApp() {
 }
 
 
-suspend fun fetchSchedule(csrfToken: String): ScheduleResponse? {
+suspend fun fetchSchedule(csrfToken: String, week: Int = 0): ScheduleResponse? {
     return try {
-        val request = ScheduleRequest(week = 0)
+        val request = ScheduleRequest(week = week)
 
         val cookies = (okHttpClient.cookieJar as MyCookieJar)
             .loadForRequest("https://omni.top-academy.ru".toHttpUrlOrNull()!!)
-        println("Куки перед запросом расписания: ${cookies.joinToString { "${it.name}=${it.value}" }}")
+        println("Куки перед запросом расписания: "+ cookies.joinToString { "${it.name}=${it.value}" })
 
         val response = apiService.getSchedule(csrfToken, request)
 
@@ -150,14 +150,18 @@ suspend fun fetchSchedule(csrfToken: String): ScheduleResponse? {
     }
 }
 
-suspend fun fetchCombinedSchedule(csrfToken: String): ScheduleResponse? {
-    val schedule1 = fetchSchedule(csrfToken) ?: return null
-
+suspend fun fetchCombinedSchedule(csrfToken: String, week: Int = 0): ScheduleResponse? {
     if (!changeCity(458)) {
         return null
     }
 
-    val schedule2 = fetchSchedule(csrfToken) ?: return null
+    val schedule1 = fetchSchedule(csrfToken, week) ?: return null
+
+    if (!changeCity(74)) {
+        return null
+    }
+
+    val schedule2 = fetchSchedule(csrfToken, week) ?: return null
 
     return mergeSchedules(schedule1, schedule2)
 }
