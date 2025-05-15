@@ -95,6 +95,8 @@ fun ScheduleScreen(
         
         LaunchedEffect(viewModel.currentWeek) {
             viewModel.preloadPreviousWeek()
+        }
+        LaunchedEffect(viewModel.currentWeek) {
             viewModel.preloadNextWeek()
         }
 

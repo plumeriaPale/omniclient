@@ -138,7 +138,7 @@ class ScheduleViewModel(
         val daysList = getDaysOfWeek()
         val daysMap = schedule.days
         val datesMap = schedule.dates
-        
+
         val dayKey = daysMap.keys.elementAtOrNull(index) ?: return daysList.getOrNull(index) ?: ""
         val dayName = daysList.getOrNull(index) ?: ""
         val dateStr = datesMap[dayKey]?.let { formatDateForDisplay(it) } ?: ""
