@@ -70,7 +70,8 @@ class ScheduleViewModelFactory(
 fun ScheduleScreen(
     navController: NavController,
     apiService: ApiService,
-    csrfToken: String
+    csrfToken: String,
+    openDrawer: (() -> Unit)? = null
 ) {
     val viewModel: ScheduleViewModel = viewModel(
         factory = ScheduleViewModelFactory(apiService, csrfToken)
@@ -100,18 +101,22 @@ fun ScheduleScreen(
             viewModel.preloadNextWeek()
         }
 
-        LaunchedEffect(pagerState.currentPage) {
-            when (pagerState.currentPage) {
+        LaunchedEffect(pagerState.settledPage) {
+            when (pagerState.settledPage) {
                 0 -> {
                     viewModel.loadPreviousWeek(setDayIndex = viewModel.getDaysOfWeek().lastIndex)
                     snapshotFlow { viewModel.schedule.value }.first { it != null }
+                    viewModel.onDaySelected(viewModel.getDaysOfWeek().lastIndex)
+                    pagerState.scrollToPage(daysWithFakes.lastIndex - 1)
                 }
                 daysWithFakes.lastIndex -> {
                     viewModel.loadNextWeek(setDayIndex = 0)
                     snapshotFlow { viewModel.schedule.value }.first { it != null }
+                    viewModel.onDaySelected(0)
+                    pagerState.scrollToPage(1)
                 }
                 else -> {
-                    viewModel.onDaySelected(pagerState.currentPage - 1)
+                    viewModel.onDaySelected(pagerState.settledPage - 1)
                 }
             }
         }
@@ -129,6 +134,7 @@ fun ScheduleScreen(
                     title = "Расписание",
                     onLogoutClick = {navController.navigate("login")},
                     navController = navController,
+                    onMenuClick = openDrawer
                 )
             },
         ){
@@ -183,11 +189,8 @@ fun ScheduleScreen(
                             when (page) {
                                 0, daysWithFakes.lastIndex -> {
                                     Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(color = Color.Red, strokeWidth = 4.dp)
-                                    }
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {}
                                 }
                                 else -> {
                                     val dayOfWeek = daysOfWeek.getOrNull(page - 1)

@@ -8,6 +8,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,6 +37,12 @@ import com.example.omniclient.ui.theme.OMNIClientTheme
 import com.example.omniclient.viewmodels.LoginViewModel
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.ui.unit.dp
 
 
 class MainActivity : ComponentActivity() {
@@ -66,6 +74,8 @@ fun MyApp() {
     }
 
     val navController = rememberNavController()
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
     val username by loginViewModel.username.collectAsState()
     val password by loginViewModel.password.collectAsState()
@@ -83,38 +93,50 @@ fun MyApp() {
         }
     }
 
-
-    NavHost(navController, startDestination = "login") {
-        composable("login") {
-            LoginScreen(
-                username = username,
-                onUsernameChange = loginViewModel::onUsernameChange,
-                password = password,
-                onPasswordChange = loginViewModel::onPasswordChange,
-                isLoading = isLoading,
-                onLogin = {
-                    loginViewModel.login {
-                        navController.navigate("schedule")
-                    }
-                }
-            )
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = true,
+        drawerContent = {
+            ModalDrawerSheet {
+                Text("Раздел 1", modifier = Modifier.padding(16.dp))
+                Text("Раздел 2", modifier = Modifier.padding(16.dp))
+                Text("Раздел 3", modifier = Modifier.padding(16.dp))
+            }
         }
-        composable("schedule") {
-            val currentCsrfToken = csrfToken
-            if (currentCsrfToken != null) {
-                ScheduleScreen(
-                    navController = navController,
-                    apiService = apiService,
-                    csrfToken = currentCsrfToken
-                )
-            } else {
-                LaunchedEffect(Unit) {
-                    navController.navigate("login") {
-                        popUpTo("login") { inclusive = true }
+    ) {
+        NavHost(navController, startDestination = "login") {
+            composable("login") {
+                LoginScreen(
+                    username = username,
+                    onUsernameChange = loginViewModel::onUsernameChange,
+                    password = password,
+                    onPasswordChange = loginViewModel::onPasswordChange,
+                    isLoading = isLoading,
+                    onLogin = {
+                        loginViewModel.login {
+                            navController.navigate("schedule")
+                        }
                     }
-                }
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Ошибка: CSRF-токен не найден. Возврат на экран входа...")
+                )
+            }
+            composable("schedule") {
+                val currentCsrfToken = csrfToken
+                if (currentCsrfToken != null) {
+                    ScheduleScreen(
+                        navController = navController,
+                        apiService = apiService,
+                        csrfToken = currentCsrfToken,
+                        openDrawer = { scope.launch { drawerState.open() } }
+                    )
+                } else {
+                    LaunchedEffect(Unit) {
+                        navController.navigate("login") {
+                            popUpTo("login") { inclusive = true }
+                        }
+                    }
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Ошибка: CSRF-токен не найден. Возврат на экран входа...")
+                    }
                 }
             }
         }
