@@ -8,18 +8,32 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHost
 import com.example.omniclient.data.db.UserEntity
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.Text
+import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NavigationDrawer(
     enableGesture: Boolean,
     drawerState: DrawerState,
+    navController: NavController,
+    scope: CoroutineScope,
     users: List<UserEntity> = emptyList(),
     currentUsername: String = "",
     onUserSelected: ((UserEntity) -> Unit)? = null,
     onAddUser: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
+    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         gesturesEnabled = enableGesture,
@@ -63,9 +77,28 @@ fun NavigationDrawer(
                         }
                     }
                 }
-                Text("Раздел 1", modifier = Modifier.padding(16.dp))
-                Text("Раздел 2", modifier = Modifier.padding(16.dp))
-                Text("Раздел 3", modifier = Modifier.padding(16.dp))
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.DateRange, contentDescription = null) },
+                    label = { Text("Расписание") },
+                    selected = currentRoute == "schedule",
+                    onClick = {
+                        navController.navigate("schedule") {
+                            popUpTo("schedule") { inclusive = true }
+                        }
+                        scope.launch { drawerState.close() }
+                    }
+                )
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Home, contentDescription = null) },
+                    label = { Text("ДЗ") },
+                    selected = currentRoute == "homework",
+                    onClick = {
+                        navController.navigate("homework") {
+                            popUpTo("schedule") { inclusive = true }
+                        }
+                        scope.launch { drawerState.close() }
+                    }
+                )
             }
         }
     ) {

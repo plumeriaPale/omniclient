@@ -19,7 +19,6 @@ import com.example.omniclient.viewmodels.LoginViewModel
 fun AttendanceScreen(
     navController: NavController,
     lenta: String,
-    date: String,
     loginViewModel: LoginViewModel
 ) {
     val context = LocalContext.current
@@ -27,7 +26,7 @@ fun AttendanceScreen(
     LaunchedEffect(Unit) {
         Toast.makeText(
             context,
-            "Данные карточки: {\"lenta\":\"$lenta\", \"date\":\"$date\"}",
+            "Данные карточки: {\"lenta\":\"$lenta\"}",
             Toast.LENGTH_LONG
         ).show()
     }

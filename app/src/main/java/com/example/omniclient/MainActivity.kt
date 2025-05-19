@@ -46,13 +46,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import com.example.omniclient.components.NavigationDrawer
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.navigation.NavType
-import androidx.navigation.navArgument
-import com.example.omniclient.api.Lesson
 import com.example.omniclient.ui.attendance.AttendanceScreen
-import com.google.gson.Gson
+import com.example.omniclient.ui.homework.HomeworkScreen
 
 
 class MainActivity : ComponentActivity() {
@@ -65,6 +60,10 @@ class MainActivity : ComponentActivity() {
             SideEffect {
                 systemUiController.setStatusBarColor(
                     color = Color.Transparent,
+                    darkIcons = true
+                )
+                systemUiController.setNavigationBarColor(
+                    color = Color(0xFFFFF8F8),
                     darkIcons = true
                 )
             }
@@ -136,6 +135,8 @@ fun MyApp() {
     NavigationDrawer(
         enableGesture = gesturesEnabled,
         drawerState = drawerState,
+        navController = navController,
+        scope = scope,
         users = allUsers,
         currentUsername = username,
         onUserSelected = { user ->
@@ -209,20 +210,18 @@ fun MyApp() {
                     }
                 }
             }
-            composable(
-                route = "attendance/{lenta}/{date}",
-                arguments = listOf(
-                    navArgument("lenta") { type = NavType.StringType },
-                    navArgument("date") { type = NavType.StringType }
-                )
-            ) { backStackEntry ->
+            composable("attendance/{lenta}") { backStackEntry ->
                 val lenta = backStackEntry.arguments?.getString("lenta") ?: ""
-                val date = backStackEntry.arguments?.getString("date") ?: ""
                 AttendanceScreen(
-                    navController = navController,
-                    lenta = lenta,
-                    date = date,
+                    navController = navController, lenta = lenta,
                     loginViewModel = loginViewModel
+                )
+            }
+            composable("homework") {
+                HomeworkScreen(
+                    navController = navController,
+                    loginViewModel = loginViewModel,
+                    openDrawer = { scope.launch { drawerState.open() } }
                 )
             }
         }

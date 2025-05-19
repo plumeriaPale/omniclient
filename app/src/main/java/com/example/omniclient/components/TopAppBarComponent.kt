@@ -1,5 +1,8 @@
 package com.example.omniclient.components
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
@@ -11,9 +14,12 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 
 @Composable
@@ -24,7 +30,20 @@ fun TopAppBarComponent(
     onMenuClick: (() -> Unit)? = null
 ) {
     TopAppBar(
-        title = { Text(text = title) },
+        title = { 
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(end = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = title,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 20.sp
+                )
+            }
+        },
         backgroundColor = Color(0xFFFFF8F8),
         contentColor = Color(0xFFFFF8F8),
         elevation = 0.dp,

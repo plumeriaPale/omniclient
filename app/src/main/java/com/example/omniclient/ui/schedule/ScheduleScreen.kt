@@ -109,22 +109,20 @@ fun ScheduleScreen(
             viewModel.preloadNextWeek()
         }
 
-        LaunchedEffect(pagerState.settledPage) {
-            when (pagerState.settledPage) {
+        LaunchedEffect(pagerState.currentPage) {
+            when (pagerState.currentPage) {
                 0 -> {
                     viewModel.loadPreviousWeek(setDayIndex = viewModel.getDaysOfWeek().lastIndex)
-                    snapshotFlow { viewModel.schedule.value }.first { it != null }
                     viewModel.onDaySelected(viewModel.getDaysOfWeek().lastIndex)
                     pagerState.scrollToPage(daysWithFakes.lastIndex - 1)
                 }
                 daysWithFakes.lastIndex -> {
                     viewModel.loadNextWeek(setDayIndex = 0)
-                    snapshotFlow { viewModel.schedule.value }.first { it != null }
                     viewModel.onDaySelected(0)
                     pagerState.scrollToPage(1)
                 }
                 else -> {
-                    viewModel.onDaySelected(pagerState.settledPage - 1)
+                    viewModel.onDaySelected(pagerState.currentPage - 1)
                 }
             }
         }
@@ -228,7 +226,7 @@ fun ScheduleScreen(
                                                         lesson,
                                                         isCurrentDay = (page - 1) == todayIndex,
                                                         onPresentClick = { clickedLesson -> 
-                                                            navController.navigate("attendance/${clickedLesson.lenta}/${clickedLesson.weekday}")
+                                                            navController.navigate("attendance/${clickedLesson.lenta}")
                                                         },
                                                         onMaterialsClick = {clickedLesson -> Log.d("Dev:ScheduleScreen", "${clickedLesson.name_spec}")}
                                                     )
