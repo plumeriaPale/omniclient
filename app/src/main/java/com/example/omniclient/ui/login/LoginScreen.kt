@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.sp
 import com.example.omniclient.R
 import com.example.omniclient.components.customColorsTextField
 
-//Накинуть Scaffold и отображать CircularProgressIndicator поверх ввода и добавить блюр на всю остальную область
 @Composable
 fun LoginScreen(
     username: String,
@@ -46,7 +45,9 @@ fun LoginScreen(
     ) {
         if (isLoading) {
             CircularProgressIndicator(color = Color.Red, strokeWidth = 4.dp)
+            Log.d("Dev:Login", "Login is not visible")
         } else {
+            Log.d("Dev:Login", "Login is visible")
             Text(
                 text = "Omni",
                 style = TextStyle(

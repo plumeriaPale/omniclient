@@ -7,7 +7,7 @@ fun initializeCsrfToken(): String? {
     val cookies = (okHttpClient.cookieJar as MyCookieJar).loadForRequest("https://omni.top-academy.ru".toHttpUrlOrNull()!!)
 
     val csrfToken = cookies.find { it.name == "_csrf" }?.value
-    Log.d("CSRF","Полученный CSRF-токен: $csrfToken")
+    Log.d("Dev:CSRF","Полученный CSRF-токен: $csrfToken")
 
     return csrfToken
 }

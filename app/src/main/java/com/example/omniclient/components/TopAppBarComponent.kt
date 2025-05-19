@@ -25,8 +25,8 @@ fun TopAppBarComponent(
 ) {
     TopAppBar(
         title = { Text(text = title) },
-        backgroundColor = MaterialTheme.colorScheme.background,
-        contentColor = Color(0xFFDB173F),
+        backgroundColor = Color(0xFFFFF8F8),
+        contentColor = Color(0xFFFFF8F8),
         elevation = 0.dp,
         navigationIcon = {
             if (onMenuClick != null) {

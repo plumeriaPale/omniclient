@@ -1,5 +1,6 @@
 package com.example.omniclient.ui.schedule
 
+import LessonCard
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -47,6 +48,10 @@ import com.google.accompanist.pager.ExperimentalPagerApi
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import com.example.omniclient.viewmodels.LoginViewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -71,7 +76,8 @@ fun ScheduleScreen(
     navController: NavController,
     apiService: ApiService,
     csrfToken: String,
-    openDrawer: (() -> Unit)? = null
+    openDrawer: (() -> Unit)? = null,
+    loginViewModel: LoginViewModel
 ) {
     val viewModel: ScheduleViewModel = viewModel(
         factory = ScheduleViewModelFactory(apiService, csrfToken)
@@ -93,7 +99,8 @@ fun ScheduleScreen(
             pageCount = { daysWithFakes.size }
         )
 
-        
+        val todayIndex = viewModel.getTodayDayIndex()
+
         LaunchedEffect(viewModel.currentWeek) {
             viewModel.preloadPreviousWeek()
         }
@@ -132,12 +139,20 @@ fun ScheduleScreen(
             topBar = {
                 TopAppBarComponent(
                     title = "Расписание",
-                    onLogoutClick = {navController.navigate("login")},
+                    onLogoutClick = {
+                        loginViewModel.logout()
+                        navController.navigate("login") {
+                            popUpTo("login") { inclusive = true }
+                        }
+                    },
                     navController = navController,
                     onMenuClick = openDrawer
                 )
             },
+            //containerColor = Color(0xFFFFF8F8),
+
         ){
+
             innerPadding ->
             Column(
                 modifier = Modifier
@@ -203,7 +218,7 @@ fun ScheduleScreen(
                                             horizontalAlignment = Alignment.CenterHorizontally
                                         ) {
                                             item {
-                                                Text(text = viewModel.getDisplayDayWithDate(page - 1))
+                                                Text(text = viewModel.getDisplayDayWithDate(page - 1), fontWeight = FontWeight.SemiBold)
                                             }
                                             item { Spacer(modifier = Modifier.height(12.dp)) }
                                             if (lessons.isEmpty()) {
@@ -212,8 +227,9 @@ fun ScheduleScreen(
                                                 items(lessons.sortedBy { it.lenta }) { lesson ->
                                                     LessonCard(
                                                         lesson,
-                                                        onPresentClick = {clickedLesson -> Log.d("ScheduleScreen", "${clickedLesson.name_spec}")},
-                                                        onMaterialsClick = {clickedLesson -> Log.d("ScheduleScreen", "${clickedLesson.name_spec}")}
+                                                        isCurrentDay = (page - 1) == todayIndex,
+                                                        onPresentClick = {clickedLesson -> Log.d("Dev:ScheduleScreen", "${clickedLesson.name_spec}")},
+                                                        onMaterialsClick = {clickedLesson -> Log.d("Dev:ScheduleScreen", "${clickedLesson.name_spec}")}
                                                     )
                                                     Spacer(modifier = Modifier.height(8.dp))
                                                 }
@@ -252,126 +268,25 @@ fun ScheduleScreen(
     }
 }
 
-@Composable
-fun LessonCard(lesson: Lesson,
-               onPresentClick: (Lesson) -> Unit,
-               onMaterialsClick: (Lesson) -> Unit)
-{
-    var isMenuExpanded by remember { mutableStateOf(false) }
-    val isCurrent = isCurrentTimeWithinLesson(lesson.l_end)
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp)
-            .wrapContentHeight(),
-        shape = RectangleShape,
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White,
-            contentColor = Color.Black
-        ),
-        elevation = CardDefaults.cardElevation(4.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .height(IntrinsicSize.Min),
-            verticalAlignment = Alignment.Top
-        ) {
-            if (isCurrent) {
-                Box(
-                    modifier = Modifier
-                        .width(4.dp)
-                        .fillMaxHeight()
-                        .background(Color(0xFFDB173F))
-                )
-            }
-            else{
-                Box(
-                    modifier = Modifier
-                        .width(4.dp)
-                        .fillMaxHeight()
-                        .background(Color.Transparent)
-                )
-            }
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = lesson.name_spec,
-                    color = Color.Black,
-                    fontSize = 16.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Группа: ${lesson.groups}", color = Color.Black, fontSize = 14.sp)
-                Text(text = "Аудитория: ${lesson.num_rooms}", color = Color.Black, fontSize = 14.sp)
-                Text(text = "Время: ${lesson.l_start} - ${lesson.l_end}", color = Color.Black, fontSize = 14.sp)
-            }
-
-            Box {
-                IconButton(
-                    onClick = { isMenuExpanded = true },
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        modifier = Modifier.size(24.dp),
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Меню",
-                        tint = Color.Black
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = isMenuExpanded,
-                    onDismissRequest = { isMenuExpanded = false },
-                    modifier = Modifier
-                        .background(Color.White)
-                        .border(
-                            width = 1.dp,
-                            color = Color.LightGray,
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                ) {
-                    DropdownMenuItem(
-                        onClick = {
-                            isMenuExpanded = false
-                            onPresentClick(lesson)
-                        },
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "Присутствующие",
-                            color = Color.Black,
-                            fontSize = 14.sp)
-                    }
-                    DropdownMenuItem(
-                        onClick = {
-                            isMenuExpanded = false
-                            onMaterialsClick(lesson)
-                        },
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "Выдать материалы",
-                            color = Color.Black,
-                            fontSize = 14.sp)
-
-                    }
-                }
-            }
-        }
-    }
-}
-
-fun isCurrentTimeWithinLesson(endTime: String): Boolean {
+fun isCurrentTimeWithinLesson(lStart: String, lEnd: String): Boolean {
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-    val currentTime = Calendar.getInstance().time
-    val lessonEndTime = timeFormat.parse(endTime)
+    val now = Calendar.getInstance()
 
-    return timeFormat.format(currentTime) == lessonEndTime?.let { timeFormat.format(it) }
+    val start = Calendar.getInstance().apply {
+        time = timeFormat.parse(lStart) ?: return false
+        set(Calendar.YEAR, now.get(Calendar.YEAR))
+        set(Calendar.MONTH, now.get(Calendar.MONTH))
+        set(Calendar.DAY_OF_MONTH, now.get(Calendar.DAY_OF_MONTH))
+    }
+    val end = Calendar.getInstance().apply {
+        time = timeFormat.parse(lEnd) ?: return false
+        set(Calendar.YEAR, now.get(Calendar.YEAR))
+        set(Calendar.MONTH, now.get(Calendar.MONTH))
+        set(Calendar.DAY_OF_MONTH, now.get(Calendar.DAY_OF_MONTH))
+    }
+
+    return now.timeInMillis in start.timeInMillis until end.timeInMillis
 }
 
 suspend fun changeCity(cityId: Int): Boolean {

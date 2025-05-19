@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.omniclient.api.MyCookieJar
 import com.example.omniclient.api.ScheduleRequest
 import com.example.omniclient.api.ScheduleResponse
@@ -43,6 +44,10 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
+import com.example.omniclient.components.NavigationDrawer
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 
 class MainActivity : ComponentActivity() {
@@ -84,40 +89,99 @@ fun MyApp() {
     val schedule by loginViewModel.schedule.collectAsState()
     val isLoggedIn by loginViewModel.isLoggedIn.collectAsState()
     val csrfToken by loginViewModel.csrfToken.collectAsState()
+    val autoLoginInProgress by loginViewModel.autoLoginInProgress.collectAsState()
+    val allUsers by loginViewModel.allUsers.collectAsState()
+    val triedAutoLogin by loginViewModel.triedAutoLogin.collectAsState()
 
-    LaunchedEffect(isLoggedIn, csrfToken) {
-        if (isLoggedIn && csrfToken != null) {
-            navController.navigate("schedule") {
-                popUpTo("login") { inclusive = true }
-            }
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val gesturesEnabled = navBackStackEntry?.destination?.route != "login"
+
+    LaunchedEffect(Unit) {
+        val savedUsername = loginViewModel.authPreferences.getUsername()
+        val savedPassword = loginViewModel.authPreferences.getPassword()
+        Log.d("Dev:Login", "tryAutoLogin")
+        if (!triedAutoLogin && !savedUsername.isNullOrEmpty() && !savedPassword.isNullOrEmpty()) {
+            Log.d("Dev:Login", "tryAutoLogin first if")
+            loginViewModel.autoLoginIfPossible(
+                onAutoLoginSuccess = {
+                    Log.d("Dev:Login", "tryAutoLogin success")
+                    navController.navigate("schedule") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                },
+                onAutoLoginFailed = {
+                    Log.d("Dev:Login", "tryAutoLogin failed")
+                    loginViewModel.setTriedAutoLogin(true)
+                }
+            )
+        } else {
+            Log.d("Dev:Login", "tryAutoLogin another else")
+            loginViewModel.setTriedAutoLogin(true)
         }
     }
 
-    ModalNavigationDrawer(
+    if (autoLoginInProgress) {
+        Log.d("Dev:Login", "autoLogin")
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    NavigationDrawer(
+        enableGesture = gesturesEnabled,
         drawerState = drawerState,
-        gesturesEnabled = true,
-        drawerContent = {
-            ModalDrawerSheet {
-                Text("Раздел 1", modifier = Modifier.padding(16.dp))
-                Text("Раздел 2", modifier = Modifier.padding(16.dp))
-                Text("Раздел 3", modifier = Modifier.padding(16.dp))
+        users = allUsers,
+        currentUsername = username,
+        onUserSelected = { user ->
+            scope.launch {
+                loginViewModel.logout()
+                loginViewModel.selectUser(
+                    user,
+                    onAutoLoginSuccess = {
+                        navController.navigate("schedule") {
+                            popUpTo("login") { inclusive = true }
+                        }
+                        scope.launch { drawerState.close() }
+                    },
+                    onAutoLoginFailed = {
+                        Toast.makeText(context, "Ошибка автологина", Toast.LENGTH_SHORT).show()
+                    }
+                )
             }
+        },
+        onAddUser = {
+            loginViewModel.onUsernameChange("")
+            loginViewModel.onPasswordChange("")
+            loginViewModel.authPreferences.clearCredentials()
+            loginViewModel.setTriedAutoLogin(true)
+            navController.navigate("login") {
+                popUpTo("login") { inclusive = true }
+            }
+            scope.launch { drawerState.close() }
         }
     ) {
         NavHost(navController, startDestination = "login") {
             composable("login") {
-                LoginScreen(
-                    username = username,
-                    onUsernameChange = loginViewModel::onUsernameChange,
-                    password = password,
-                    onPasswordChange = loginViewModel::onPasswordChange,
-                    isLoading = isLoading,
-                    onLogin = {
-                        loginViewModel.login {
-                            navController.navigate("schedule")
-                        }
+                if (!triedAutoLogin) {
+                    Log.d("Dev:Login", "triedAutoLogin")
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color.Red, strokeWidth = 4.dp)
                     }
-                )
+                } else {
+                    LoginScreen(
+                        username = username,
+                        onUsernameChange = loginViewModel::onUsernameChange,
+                        password = password,
+                        onPasswordChange = loginViewModel::onPasswordChange,
+                        isLoading = isLoading,
+                        onLogin = {
+                            loginViewModel.login {
+                                navController.navigate("schedule")
+                            }
+                        }
+                    )
+                }
             }
             composable("schedule") {
                 val currentCsrfToken = csrfToken
@@ -126,7 +190,8 @@ fun MyApp() {
                         navController = navController,
                         apiService = apiService,
                         csrfToken = currentCsrfToken,
-                        openDrawer = { scope.launch { drawerState.open() } }
+                        openDrawer = { scope.launch { drawerState.open() } },
+                        loginViewModel = loginViewModel
                     )
                 } else {
                     LaunchedEffect(Unit) {
@@ -142,11 +207,13 @@ fun MyApp() {
         }
     }
 
+    /*
     if (responseText.isNotEmpty()) {
         LaunchedEffect(responseText) {
             Toast.makeText(context, responseText, Toast.LENGTH_SHORT).show()
         }
     }
+    */
 }
 
 
@@ -174,16 +241,34 @@ suspend fun fetchSchedule(csrfToken: String, week: Int = 0): ScheduleResponse? {
 
 suspend fun fetchCombinedSchedule(csrfToken: String, week: Int = 0): ScheduleResponse? {
     if (!changeCity(458)) {
+        Log.d("Dev:Schedule", "Error with change city in MainActivity.kt")
         return null
     }
 
-    val schedule1 = fetchSchedule(csrfToken, week) ?: return null
+    val schedule1 = fetchSchedule(csrfToken, week)?.let { response ->
+        response.copy(
+            body = response.body.mapValues { (_, dayLessons) ->
+                dayLessons.mapValues { (_, lesson) ->
+                    lesson.copy(divisionId = 458) // Колледж
+                }
+            }
+        )
+    } ?: return null
 
     if (!changeCity(74)) {
+        Log.d("Dev:Schedule", "Error with change city in MainActivity.kt")
         return null
     }
 
-    val schedule2 = fetchSchedule(csrfToken, week) ?: return null
+    val schedule2 = fetchSchedule(csrfToken, week)?.let { response ->
+        response.copy(
+            body = response.body.mapValues { (_, dayLessons) ->
+                dayLessons.mapValues { (_, lesson) ->
+                    lesson.copy(divisionId = 74) // Академия
+                }
+            }
+        )
+    } ?: return null
 
     return mergeSchedules(schedule1, schedule2)
 }

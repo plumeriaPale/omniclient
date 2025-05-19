@@ -36,7 +36,7 @@ interface ApiService {
 }
 
 val loggingInterceptor = HttpLoggingInterceptor { message ->
-    Log.d("ApiService", message)
+    //Log.d("Dev:ApiService", message)
 }.apply {
     level = HttpLoggingInterceptor.Level.BODY
 }

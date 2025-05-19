@@ -14,7 +14,7 @@ class MyCookieJar : CookieJar {
         cookies.forEach { newCookie ->
             hostCookies.removeIf { it.name == newCookie.name }
             hostCookies.add(newCookie)
-            Log.d("Cookie", "${newCookie.name} cookie saved: ${newCookie.value}")
+            Log.d("Dev:Cookie", "${newCookie.name} cookie saved: ${newCookie.value}")
         }
 
         this.cookies[url.host] = hostCookies

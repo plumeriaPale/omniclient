@@ -38,11 +38,11 @@ class ScheduleViewModel(
 
     init {
         loadSchedule()
-        Log.d("Schedule", "Navigate")
+        Log.d("Dev:Schedule", "Navigate")
     }
 
     private fun loadSchedule(week: Int = currentWeek, setDayIndex: Int? = null) {
-        Log.d("Schedule", "Navigate")
+        Log.d("Dev:Schedule", "Navigate")
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
@@ -73,17 +73,17 @@ class ScheduleViewModel(
     }
 
     fun loadNextWeek(setDayIndex: Int = 0) {
-        Log.d("loadNextWeek",currentWeek.toString())
+        Log.d("Dev:loadNextWeek",currentWeek.toString())
         loadSchedule(currentWeek + 1, setDayIndex)
     }
 
     fun loadPreviousWeek(setDayIndex: Int) {
-        Log.d("loadPreviousWeek",currentWeek.toString())
+        Log.d("Dev:loadPreviousWeek",currentWeek.toString())
         loadSchedule(currentWeek - 1, setDayIndex)
     }
 
     fun preloadNextWeek() {
-        Log.d("preloadNextWeek",currentWeek.toString())
+        Log.d("Dev:preloadNextWeek",currentWeek.toString())
         val nextWeek = currentWeek + 1
         if (!weekCache.containsKey(nextWeek)) {
             viewModelScope.launch {
@@ -94,7 +94,7 @@ class ScheduleViewModel(
     }
 
     fun preloadPreviousWeek() {
-        Log.d("preloadNextWeek",currentWeek.toString())
+        Log.d("Dev:preloadNextWeek",currentWeek.toString())
         val prevWeek = currentWeek - 1
         if (!weekCache.containsKey(prevWeek)) {
             viewModelScope.launch {
@@ -121,16 +121,6 @@ class ScheduleViewModel(
 
     fun getDaysOfWeek(): List<String> {
         return _schedule.value?.days?.values?.toList() ?: emptyList()
-    }
-
-    fun getLessonsForCurrentDay(): List<Lesson> {
-        Log.d("getLessonsForCurrentDay", "Start")
-        val currentDayOfWeek = getDaysOfWeek().getOrNull(_currentDayIndex.value)
-        return if (currentDayOfWeek != null && _schedule.value != null) {
-            getLessonsForDay(_schedule.value!!, currentDayOfWeek)
-        } else {
-            emptyList()
-        }
     }
 
     fun getDisplayDayWithDate(index: Int): String {
@@ -170,5 +160,16 @@ class ScheduleViewModel(
         } catch (e: Exception) {
             date
         }
+    }
+
+    fun getTodayDayIndex(): Int? {
+        val schedule = _schedule.value ?: return null
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Calendar.getInstance().time)
+        val daysList = getDaysOfWeek()
+        val daysMap = schedule.days
+        val datesMap = schedule.dates
+
+        val todayKey = datesMap.entries.find { it.value == today }?.key ?: return null
+        return daysMap.keys.indexOf(todayKey)
     }
 }

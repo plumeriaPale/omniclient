@@ -38,7 +38,8 @@ data class Lesson(
     val entity_id: String,
     val scheduleType: String,
     val eventName: String?,
-    val eventSubtypeName: String?
+    val eventSubtypeName: String?,
+    val divisionId: Int = 0
 )
 
 data class Lent(
