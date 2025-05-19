@@ -48,6 +48,11 @@ import com.example.omniclient.components.NavigationDrawer
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.example.omniclient.api.Lesson
+import com.example.omniclient.ui.attendance.AttendanceScreen
+import com.google.gson.Gson
 
 
 class MainActivity : ComponentActivity() {
@@ -203,6 +208,22 @@ fun MyApp() {
                         Text("Ошибка: CSRF-токен не найден. Возврат на экран входа...")
                     }
                 }
+            }
+            composable(
+                route = "attendance/{lenta}/{date}",
+                arguments = listOf(
+                    navArgument("lenta") { type = NavType.StringType },
+                    navArgument("date") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val lenta = backStackEntry.arguments?.getString("lenta") ?: ""
+                val date = backStackEntry.arguments?.getString("date") ?: ""
+                AttendanceScreen(
+                    navController = navController,
+                    lenta = lenta,
+                    date = date,
+                    loginViewModel = loginViewModel
+                )
             }
         }
     }

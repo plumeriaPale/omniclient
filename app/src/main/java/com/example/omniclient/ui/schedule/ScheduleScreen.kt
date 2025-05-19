@@ -56,6 +56,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import kotlinx.coroutines.flow.first
+import com.google.gson.Gson
 
 class ScheduleViewModelFactory(
     private val apiService: ApiService,
@@ -148,9 +149,7 @@ fun ScheduleScreen(
                     navController = navController,
                     onMenuClick = openDrawer
                 )
-            },
-            //containerColor = Color(0xFFFFF8F8),
-
+            }
         ){
 
             innerPadding ->
@@ -228,7 +227,9 @@ fun ScheduleScreen(
                                                     LessonCard(
                                                         lesson,
                                                         isCurrentDay = (page - 1) == todayIndex,
-                                                        onPresentClick = {clickedLesson -> Log.d("Dev:ScheduleScreen", "${clickedLesson.name_spec}")},
+                                                        onPresentClick = { clickedLesson -> 
+                                                            navController.navigate("attendance/${clickedLesson.lenta}/${clickedLesson.weekday}")
+                                                        },
                                                         onMaterialsClick = {clickedLesson -> Log.d("Dev:ScheduleScreen", "${clickedLesson.name_spec}")}
                                                     )
                                                     Spacer(modifier = Modifier.height(8.dp))
