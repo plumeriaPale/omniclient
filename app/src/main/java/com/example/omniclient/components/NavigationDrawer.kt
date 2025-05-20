@@ -1,6 +1,7 @@
 package com.example.omniclient.components
 
 import android.gesture.Gesture
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import kotlinx.coroutines.CoroutineScope
@@ -38,7 +40,7 @@ fun NavigationDrawer(
         drawerState = drawerState,
         gesturesEnabled = enableGesture,
         drawerContent = {
-            ModalDrawerSheet {
+            ModalDrawerSheet(drawerContainerColor = Color(0xFFfef8f8)){
                 if (users.isNotEmpty() && onUserSelected != null && onAddUser != null) {
                     var expanded by remember { mutableStateOf(false) }
                     val filteredUsers = users.filter { it.username != currentUsername }

@@ -26,6 +26,7 @@ private val LightColorScheme = lightColorScheme(
     tertiary = Color(0xFFDB173F),
     background = Color(0xFFFFF8F8),
     surface = Color(0xFFFFF8F8),
+    surfaceVariant = Color(0xFFFFF8F8)
 
 
     /*
@@ -45,6 +46,7 @@ fun OMNIClientTheme(
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    /*
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
@@ -53,7 +55,7 @@ fun OMNIClientTheme(
 
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
-    }
+    }*/
 
     MaterialTheme(
         colorScheme = LightColorScheme,
