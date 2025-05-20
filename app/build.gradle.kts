@@ -63,6 +63,7 @@ dependencies {
     implementation ("com.google.accompanist:accompanist-systemuicontroller:0.36.0")
 
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.media3.exoplayer)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

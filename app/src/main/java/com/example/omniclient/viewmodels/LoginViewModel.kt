@@ -20,8 +20,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import com.example.omniclient.data.db.DatabaseProvider
 import com.example.omniclient.data.db.UserEntity
+import com.example.omniclient.ui.homework.Homework
+import com.example.omniclient.ui.homework.generateSaveHomeworkBody
+import com.example.omniclient.ui.schedule.changeCity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import java.util.concurrent.ConcurrentLinkedQueue
 
 class LoginViewModel(
     private val context: Context,
@@ -192,5 +199,44 @@ class LoginViewModel(
         _password.value = ""
         authPreferences.clearCredentials()
         setTriedAutoLogin(true)
+    }
+
+    // Очередь на отправку оценок
+    data class HomeworkSendTask(
+        val homework: Homework,
+        val mark: Int?,
+        val comment: String?,
+        val division: Int // 458 - колледж, 74 - академия
+    )
+
+    private val homeworkSendQueue = ConcurrentLinkedQueue<HomeworkSendTask>()
+    private var isSendingHomework = false
+
+    fun enqueueHomeworkSend(hw: Homework, mark: Int?, comment: String?, division: Int) {
+        homeworkSendQueue.add(HomeworkSendTask(hw, mark, comment, division))
+        processHomeworkQueue()
+    }
+
+    private fun processHomeworkQueue() {
+        if (isSendingHomework) return
+        isSendingHomework = true
+        viewModelScope.launch {
+            while (homeworkSendQueue.isNotEmpty()) {
+                val task = homeworkSendQueue.poll() ?: continue
+                try {
+                    changeCity(task.division)
+                    val body = mapOf("HomeworkForm" to generateSaveHomeworkBody(task.homework, task.mark, task.comment))
+                    val response = apiService.saveHomework(body)
+                    if (response.isSuccessful) {
+                        Log.d("Dev:HomeworkQueue", "Успешно отправлено: ${task.homework.id}")
+                    } else {
+                        Log.e("Dev:HomeworkQueue", "Ошибка отправки: ${task.homework.id} code=${response.code()} message=${response.message()} body=${response.errorBody()?.string()}")
+                    }
+                } catch (e: Exception) {
+                    Log.e("Dev:HomeworkQueue", "Исключение при отправке: ${task.homework.id} ${e.message}")
+                }
+            }
+            isSendingHomework = false
+        }
     }
 }

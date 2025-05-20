@@ -32,7 +32,25 @@ interface ApiService {
         @Body request: ScheduleRequest
     ): Response<ScheduleResponse>
 
+    @POST("homework/get-new-homeworks")
+    @Headers(
+        "Content-Type: application/json;charset=UTF-8",
+        "Accept: application/json",
+        "X-Requested-With: XMLHttpRequest"
+    )
+    suspend fun getNewHomeworks(
+        @Body body: Map<String, @JvmSuppressWildcards Any>
+    ): retrofit2.Response<okhttp3.ResponseBody>
 
+    @POST("homework/save-homework")
+    @Headers(
+        "Content-Type: application/json;charset=UTF-8",
+        "Accept: application/json",
+        "X-Requested-With: XMLHttpRequest"
+    )
+    suspend fun saveHomework(
+        @Body body: Map<String, @JvmSuppressWildcards Any?>
+    ): retrofit2.Response<okhttp3.ResponseBody>
 }
 
 val loggingInterceptor = HttpLoggingInterceptor { message ->
