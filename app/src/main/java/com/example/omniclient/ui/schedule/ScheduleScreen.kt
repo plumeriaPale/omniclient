@@ -40,6 +40,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.compose.ui.platform.LocalContext
 
 import com.example.omniclient.api.*
 import com.example.omniclient.components.TopAppBarComponent
@@ -59,13 +60,15 @@ import kotlinx.coroutines.flow.first
 import com.google.gson.Gson
 
 class ScheduleViewModelFactory(
+    private val context: android.content.Context,
     private val apiService: ApiService,
-    private val csrfToken: String
+    private val csrfToken: String,
+    private val username: String
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ScheduleViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return ScheduleViewModel(apiService, csrfToken) as T
+            return ScheduleViewModel(context, apiService, csrfToken, username) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
@@ -80,8 +83,10 @@ fun ScheduleScreen(
     openDrawer: (() -> Unit)? = null,
     loginViewModel: LoginViewModel
 ) {
+    val context = LocalContext.current
+    val username by loginViewModel.username.collectAsState()
     val viewModel: ScheduleViewModel = viewModel(
-        factory = ScheduleViewModelFactory(apiService, csrfToken)
+        factory = ScheduleViewModelFactory(context, apiService, csrfToken, username)
     )
 
     val schedule by viewModel.schedule.collectAsState()
@@ -104,8 +109,6 @@ fun ScheduleScreen(
 
         LaunchedEffect(viewModel.currentWeek) {
             viewModel.preloadPreviousWeek()
-        }
-        LaunchedEffect(viewModel.currentWeek) {
             viewModel.preloadNextWeek()
         }
 

@@ -2,6 +2,7 @@ package com.example.omniclient.components
 
 import android.gesture.Gesture
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,7 +16,9 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import kotlinx.coroutines.CoroutineScope
@@ -40,11 +43,12 @@ fun NavigationDrawer(
         drawerState = drawerState,
         gesturesEnabled = enableGesture,
         drawerContent = {
-            ModalDrawerSheet(drawerContainerColor = Color(0xFFfef8f8)){
+            ModalDrawerSheet(drawerContainerColor = Color(0xFFFEF8F8)){
                 if (users.isNotEmpty() && onUserSelected != null && onAddUser != null) {
                     var expanded by remember { mutableStateOf(false) }
                     val filteredUsers = users.filter { it.username != currentUsername }
                     ExposedDropdownMenuBox(
+                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
                         expanded = expanded,
                         onExpandedChange = { expanded = !expanded }
                     ) {
@@ -54,9 +58,10 @@ fun NavigationDrawer(
                             readOnly = true,
                             label = { Text("Пользователь") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                            modifier = Modifier.menuAnchor().padding(16.dp)
+                            modifier = Modifier.menuAnchor()
                         )
                         ExposedDropdownMenu(
+                            modifier = Modifier.background(Color(0xFFFEF8F8)),
                             expanded = expanded,
                             onDismissRequest = { expanded = false }
                         ) {
@@ -74,13 +79,13 @@ fun NavigationDrawer(
                                 onClick = {
                                     expanded = false
                                     onAddUser()
-                                }
+                                },
                             )
                         }
                     }
                 }
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.DateRange, contentDescription = null) },
+                    icon = { Icon(Icons.Default.DateRange, contentDescription = null, tint = if (currentRoute == "schedule") Color(0xFFDB173F) else Color.Black) },
                     label = { Text("Расписание") },
                     selected = currentRoute == "schedule",
                     onClick = {
@@ -88,10 +93,15 @@ fun NavigationDrawer(
                             popUpTo("schedule") { inclusive = true }
                         }
                         scope.launch { drawerState.close() }
-                    }
+                    },
+                    colors = NavigationDrawerItemDefaults.colors(
+                        selectedContainerColor = Color(0x00FFFFFF),
+                        unselectedContainerColor = Color(0x00FFFFFF),
+                    ),
+                    shape = RectangleShape
                 )
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.Home, contentDescription = null) },
+                    icon = { Icon(Icons.Default.Home, contentDescription = null, tint = if (currentRoute == "homework") Color(0xFFDB173F) else Color.Black) },
                     label = { Text("ДЗ") },
                     selected = currentRoute == "homework",
                     onClick = {
@@ -99,7 +109,12 @@ fun NavigationDrawer(
                             popUpTo("schedule") { inclusive = true }
                         }
                         scope.launch { drawerState.close() }
-                    }
+                    },
+                    colors = NavigationDrawerItemDefaults.colors(
+                        selectedContainerColor = Color(0x00FFFFFF),
+                        unselectedContainerColor = Color(0x00FFFFFF),
+                    ),
+                    shape = RectangleShape
                 )
             }
         }

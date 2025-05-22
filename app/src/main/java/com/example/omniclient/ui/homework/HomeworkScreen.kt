@@ -46,8 +46,17 @@ import com.example.omniclient.api.MyCookieJar
 import com.example.omniclient.api.okHttpClient
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import com.example.omniclient.ui.homework.HomeworkSendQueue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.collectAsState
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
 
-// --- data class для парса ответа API ---
 data class HomeworkApiResponse(val homework: List<Homework>)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,18 +70,20 @@ fun HomeworkScreen(
     val scope = rememberCoroutineScope()
     val tabs = listOf("Колледж", "Академия")
 
-    // Состояния для данных и загрузки
     var collegeHomework by remember { mutableStateOf<List<Homework>?>(null) }
     var academyHomework by remember { mutableStateOf<List<Homework>?>(null) }
     var isCollegeLoading by remember { mutableStateOf(true) }
     var isAcademyLoading by remember { mutableStateOf(true) }
     var errorText by remember { mutableStateOf<String?>(null) }
 
-    // Оценки для каждой карточки (id -> mark)
     val collegeMarks = remember { mutableStateMapOf<String, Int>() }
     val academyMarks = remember { mutableStateMapOf<String, Int>() }
 
-    // Загрузка данных при открытии экрана
+    val context = LocalContext.current
+    var showFailToast by remember { mutableStateOf(false) }
+    val collegeQueueCount by HomeworkSendQueue.collegeQueueCount.collectAsState()
+    val academyQueueCount by HomeworkSendQueue.academyQueueCount.collectAsState()
+
     LaunchedEffect(Unit) {
         // Колледж
         isCollegeLoading = true
@@ -160,7 +171,7 @@ fun HomeworkScreen(
                 selectedTabIndex = pagerState.currentPage,
                 contentColor = Color(0xFFDB173F),
                 indicator = { tabPositions: List<TabPosition> ->
-                    androidx.compose.material3.TabRowDefaults.SecondaryIndicator(
+                    TabRowDefaults.SecondaryIndicator(
                         Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
                         height = 2.dp,
                         color = Color(0xFFDB173F)
@@ -168,25 +179,84 @@ fun HomeworkScreen(
                 },
                 divider = {}
             ) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = pagerState.currentPage == index,
-                        onClick = {
-                            if (pagerState.currentPage != index) {
-                                scope.launch { pagerState.animateScrollToPage(index) }
-                            }
-                        },
-                        selectedContentColor = Color(0xFFDB173F),
-                        unselectedContentColor = Color.Black,
-                        text = {
-                            Text(
-                                text = title,
-                                fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 16.sp
-                            )
+                Tab(
+                    selected = pagerState.currentPage == 0,
+                    onClick = {
+                        if (pagerState.currentPage != 0) {
+                            scope.launch { pagerState.animateScrollToPage(0) }
                         }
-                    )
-                }
+                    },
+                    selectedContentColor = Color(0xFFDB173F),
+                    unselectedContentColor = Color.Black,
+                    text = {
+                        Box(
+                            Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            val count = collegeHomework?.size ?: 0
+                            val label = if (collegeHomework != null && count > 0) "Колледж ($count)" else "Колледж"
+                            Text(
+                                text = label,
+                                fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal,
+                                fontSize = 16.sp,
+                            )
+                            if (collegeQueueCount > 0) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.align(Alignment.CenterEnd)
+                                ) {
+                                    Text(
+                                        text = collegeQueueCount.toString(),
+                                        color = Color(0xFFDB173F),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    TypingDots(color = Color(0xFFDB173F), dotSize = 5, space = 2)
+                                }
+                            }
+                        }
+                    }
+                )
+                Tab(
+                    selected = pagerState.currentPage == 1,
+                    onClick = {
+                        if (pagerState.currentPage != 1) {
+                            scope.launch { pagerState.animateScrollToPage(1) }
+                        }
+                    },
+                    selectedContentColor = Color(0xFFDB173F),
+                    unselectedContentColor = Color.Black,
+                    text = {
+                        Box(
+                            Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            val count = academyHomework?.size ?: 0
+                            val label = if (academyHomework != null && count > 0) "Академия ($count)" else "Академия"
+                            Text(
+                                text = label,
+                                fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal,
+                                fontSize = 16.sp,
+                            )
+                            if (academyQueueCount > 0) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.align(Alignment.CenterEnd)
+                                ) {
+                                    Text(
+                                        text = academyQueueCount.toString(),
+                                        color = Color(0xFFDB173F),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    TypingDots(color = Color(0xFFDB173F), dotSize = 5, space = 2)
+                                }
+                            }
+                        }
+                    }
+                )
             }
             HorizontalPager(
                 state = pagerState,
@@ -213,11 +283,16 @@ fun HomeworkScreen(
                                         onSave = { mark, comment ->
                                             if (isSending) return@HomeworkCard
                                             isSending = true
+                                            val hwToSend = hw
                                             collegeHomework = collegeHomework!!.filter { it.id != hw.id }
                                             HomeworkSendQueue.enqueue(
                                                 HomeworkSendQueue.HomeworkSendTask(hw, mark, comment, 458),
                                                 apiService = apiService,
-                                                changeCity = { division -> changeCity(division) }
+                                                changeCity = { division -> changeCity(division) },
+                                                onFail = { failedTask ->
+                                                    collegeHomework = (collegeHomework ?: emptyList()) + failedTask.homework
+                                                    showFailToast = true
+                                                }
                                             )
                                             isSending = false
                                         }
@@ -250,13 +325,16 @@ fun HomeworkScreen(
                                         onSave = { mark, comment ->
                                             if (isSending) return@HomeworkCard
                                             isSending = true
-                                            // Сразу убираем карточку из списка
+                                            val hwToSend = hw
                                             academyHomework = academyHomework!!.filter { it.id != hw.id }
-                                            // Кладём задачу в очередь на отправку
                                             HomeworkSendQueue.enqueue(
                                                 HomeworkSendQueue.HomeworkSendTask(hw, mark, comment, 74),
                                                 apiService = apiService,
-                                                changeCity = { division -> changeCity(division) }
+                                                changeCity = { division -> changeCity(division) },
+                                                onFail = { failedTask ->
+                                                    academyHomework = (academyHomework ?: emptyList()) + failedTask.homework
+                                                    showFailToast = true
+                                                }
                                             )
                                             isSending = false
                                         }
@@ -271,6 +349,13 @@ fun HomeworkScreen(
                     }
                 }
             }
+        }
+    }
+
+    if (showFailToast) {
+        LaunchedEffect(showFailToast) {
+            Toast.makeText(context, "Не удалось сохранить ДЗ", Toast.LENGTH_SHORT).show()
+            showFailToast = false
         }
     }
 }
@@ -321,4 +406,89 @@ fun generateSaveHomeworkBody(hw: Homework, mark: Int?, comment: String?): Map<St
             )
         )
     )
+}
+
+@Composable
+fun TypingDots(
+    color: Color,
+    dotSize: Int = 5,
+    space: Int = 2
+) {
+    val transition = rememberInfiniteTransition(label = "typing-dots")
+    val scale1 by transition.animateFloat(
+        initialValue = 0.7f, targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ), label = "scale1"
+    )
+    val scale2 by transition.animateFloat(
+        initialValue = 0.7f, targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, delayMillis = 200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ), label = "scale2"
+    )
+    val scale3 by transition.animateFloat(
+        initialValue = 0.7f, targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, delayMillis = 400, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ), label = "scale3"
+    )
+    val alpha1 by transition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ), label = "alpha1"
+    )
+    val alpha2 by transition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, delayMillis = 200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ), label = "alpha2"
+    )
+    val alpha3 by transition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, delayMillis = 400, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ), label = "alpha3"
+    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier
+                .size(dotSize.dp)
+                .graphicsLayer {
+                    scaleX = scale1
+                    scaleY = scale1
+                    alpha = alpha1
+                }
+                .background(color = color, shape = RoundedCornerShape(50))
+        )
+        Spacer(modifier = Modifier.width(space.dp))
+        Box(
+            Modifier
+                .size(dotSize.dp)
+                .graphicsLayer {
+                    scaleX = scale2
+                    scaleY = scale2
+                    alpha = alpha2
+                }
+                .background(color = color, shape = RoundedCornerShape(50))
+        )
+        Spacer(modifier = Modifier.width(space.dp))
+        Box(
+            Modifier
+                .size(dotSize.dp)
+                .graphicsLayer {
+                    scaleX = scale3
+                    scaleY = scale3
+                    alpha = alpha3
+                }
+                .background(color = color, shape = RoundedCornerShape(50))
+        )
+    }
 }

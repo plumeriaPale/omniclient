@@ -6,6 +6,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentLinkedQueue
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 object HomeworkSendQueue {
     data class HomeworkSendTask(
@@ -15,15 +18,22 @@ object HomeworkSendQueue {
         val division: Int // 458 - колледж, 74 - академия
     )
 
-    private val queue = ConcurrentLinkedQueue<HomeworkSendTask>()
+    private val queue = ConcurrentLinkedQueue<Pair<HomeworkSendTask, ((HomeworkSendTask) -> Unit)?>>()
     @Volatile private var isProcessing = false
+
+    private val _collegeQueueCount = MutableStateFlow(0)
+    val collegeQueueCount: StateFlow<Int> = _collegeQueueCount.asStateFlow()
+    private val _academyQueueCount = MutableStateFlow(0)
+    val academyQueueCount: StateFlow<Int> = _academyQueueCount.asStateFlow()
 
     fun enqueue(
         task: HomeworkSendTask,
         apiService: ApiService,
-        changeCity: suspend (Int) -> Unit
+        changeCity: suspend (Int) -> Unit,
+        onFail: ((HomeworkSendTask) -> Unit)? = null
     ) {
-        queue.add(task)
+        queue.add(Pair(task, onFail))
+        updateQueueCounts()
         processQueue(apiService, changeCity)
     }
 
@@ -35,7 +45,7 @@ object HomeworkSendQueue {
         isProcessing = true
         CoroutineScope(Dispatchers.IO).launch {
             while (queue.isNotEmpty()) {
-                val task = queue.poll() ?: continue
+                val (task, onFail) = queue.poll() ?: continue
                 try {
                     changeCity(task.division)
                     val body = mapOf("HomeworkForm" to generateSaveHomeworkBody(task.homework, task.mark, task.comment))
@@ -43,13 +53,23 @@ object HomeworkSendQueue {
                     if (response.isSuccessful) {
                         Log.d("Dev:HomeworkQueue", "Успешно отправлено: ${task.homework.id}")
                     } else {
-                        Log.e("Dev:HomeworkQueue", "Ошибка отправки: ${task.homework.id} code=${response.code()} message=${response.message()} body=${response.errorBody()?.string()}")
+                        Log.e("Dev: Schedule", "Ошибка отправки: ${task.homework.id} code=${response.code()} message=${response.message()} body=${response.errorBody()?.string()}")
+                        onFail?.invoke(task)
                     }
                 } catch (e: Exception) {
-                    Log.e("Dev:HomeworkQueue", "Исключение при отправке: ${task.homework.id} ${e.message}")
+                    Log.e("Dev: Schedule", "Исключение при отправке: ${task.homework.id} ${e.message}")
+                    onFail?.invoke(task)
                 }
+                updateQueueCounts()
             }
             isProcessing = false
+            updateQueueCounts()
         }
+    }
+
+    private fun updateQueueCounts() {
+        val all = queue.map { it.first }
+        _collegeQueueCount.value = all.count { it.division == 458 }
+        _academyQueueCount.value = all.count { it.division == 74 }
     }
 } 

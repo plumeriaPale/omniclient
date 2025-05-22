@@ -51,6 +51,16 @@ interface ApiService {
     suspend fun saveHomework(
         @Body body: Map<String, @JvmSuppressWildcards Any?>
     ): retrofit2.Response<okhttp3.ResponseBody>
+
+    @POST("presents/get-presents")
+    @Headers(
+        "Content-Type: application/json;charset=UTF-8",
+        "Accept: application/json",
+        "X-Requested-With: XMLHttpRequest"
+    )
+    suspend fun getPresents(
+        @Body body: Map<String, @JvmSuppressWildcards Any>
+    ): retrofit2.Response<okhttp3.ResponseBody>
 }
 
 val loggingInterceptor = HttpLoggingInterceptor { message ->

@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
@@ -26,8 +27,6 @@ import com.example.omniclient.icons.DownloadIcon
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalUriHandler
 
-// data class для дз
-// (лучше вынести в отдельный файл, но для примера оставим тут)
 data class Homework(
     val fio_stud: String,
     val group: String,
@@ -102,7 +101,7 @@ fun HomeworkCard(
                 Text(text = "Задание преподавателя:", fontWeight = FontWeight.Bold, color = Color.Black)
                 Spacer(modifier = Modifier.width(8.dp))
                 if (homework.download_url != null) {
-                    IconButton(onClick = { uriHandler.openUri(homework.download_url)   }) {
+                    IconButton(onClick = { uriHandler.openUri(homework.download_url)}) {
                         Icon(
                             imageVector = DownloadIcon,
                             contentDescription = "Скачать задание",
@@ -138,12 +137,17 @@ fun HomeworkCard(
                 Text(text = homework.stud_date, color = Color.Gray)
             }
             if (!homework.answer_text.isNullOrEmpty()) {
-                Text(text = homework.answer_text, color = Color(0xFFDB173F), fontSize = 14.sp)
+                SelectionContainer {
+                    Text(text = homework.answer_text, color = Color.Black, fontSize = 14.sp)
+                }
+
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = "Поставить оценку:", fontWeight = FontWeight.Bold, color = Color.Black)
+
+
+
             FlowRow(
-                horizontalArrangement = Arrangement.Center,
                 verticalArrangement = Arrangement.Center,
                 maxItemsInEachRow = 6,
                 modifier = Modifier.padding(top = 4.dp).fillMaxWidth()
@@ -157,6 +161,7 @@ fun HomeworkCard(
                             )
                             .clickable { onMarkSelected(mark) }
                             .padding(horizontal = 12.dp, vertical = 8.dp),
+
                         contentAlignment = Alignment.Center
                     ) {
                         Text(

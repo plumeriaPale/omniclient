@@ -26,18 +26,7 @@ private val LightColorScheme = lightColorScheme(
     tertiary = Color(0xFFDB173F),
     background = Color(0xFFFFF8F8),
     surface = Color(0xFFFFF8F8),
-    surfaceVariant = Color(0xFFFFF8F8)
-
-
-    /*
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    surfaceVariant = Color(0xFFFFF8F8),
 )
 
 @Composable
