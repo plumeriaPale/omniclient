@@ -48,6 +48,7 @@ fun LessonCard(
 ) {
     var isMenuExpanded by remember { mutableStateOf(false) }
     val isCurrent = isCurrentDay && isCurrentTimeWithinLesson(lesson.l_start, lesson.l_end)
+    val division = Division.fromId(lesson.divisionId)
 
     Card(
         modifier = Modifier
@@ -65,7 +66,7 @@ fun LessonCard(
             modifier = Modifier
                 .height(4.dp)
                 .fillMaxWidth()
-                .background(Division.fromId(lesson.divisionId)?.color ?: Color.Gray)
+                .background(division?.color ?: Color.Gray)
         )
         Row(
             modifier = Modifier
@@ -77,10 +78,9 @@ fun LessonCard(
                     modifier = Modifier
                         .width(4.dp)
                         .fillMaxHeight()
-                        .background(Division.fromId(lesson.divisionId)?.color ?: Color.Gray)
+                        .background(division?.color ?: Color.Gray)
                 )
-            }
-            else{
+            } else {
                 Box(
                     modifier = Modifier
                         .width(4.dp)
@@ -98,6 +98,9 @@ fun LessonCard(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
                 )
+                if (division == null) {
+                    Text(text = "Не определено", color = Color.Gray, fontSize = 12.sp)
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(modifier = Modifier.padding(start = 8.dp), text = "Группа: ${lesson.groups}", color = Color.Black, fontSize = 14.sp)

@@ -116,22 +116,6 @@ fun NavigationDrawer(
                     ),
                     shape = RectangleShape
                 )
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.Home, contentDescription = null, tint = if (currentRoute == "testing") Color(0xFFDB173F) else Color.Black) },
-                    label = { Text("Тестировка") },
-                    selected = currentRoute == "testing",
-                    onClick = {
-                        navController.navigate("testing") {
-                            popUpTo("schedule") { inclusive = false }
-                        }
-                        scope.launch { drawerState.close() }
-                    },
-                    colors = NavigationDrawerItemDefaults.colors(
-                        selectedContainerColor = Color(0x00FFFFFF),
-                        unselectedContainerColor = Color(0x00FFFFFF),
-                    ),
-                    shape = RectangleShape
-                )
             }
         }
     ) {

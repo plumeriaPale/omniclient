@@ -23,6 +23,12 @@ object DatabaseProvider {
         }
     }
 
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("ALTER TABLE schedule ADD COLUMN divisionId INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     fun getDatabase(context: Context): AppDatabase {
         return INSTANCE ?: synchronized(this) {
             val instance = Room.databaseBuilder(
@@ -30,7 +36,7 @@ object DatabaseProvider {
                 AppDatabase::class.java,
                 "omniclient_db"
             )
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .build()
             INSTANCE = instance
             instance

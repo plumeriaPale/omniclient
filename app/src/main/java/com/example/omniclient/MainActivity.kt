@@ -48,7 +48,6 @@ import com.example.omniclient.components.NavigationDrawer
 import androidx.compose.material3.CircularProgressIndicator
 import com.example.omniclient.ui.attendance.AttendanceScreen
 import com.example.omniclient.ui.homework.HomeworkScreen
-import com.example.omniclient.ui.testing.TestingScreen
 
 
 class MainActivity : ComponentActivity() {
@@ -236,9 +235,6 @@ fun MyApp() {
                     loginViewModel = loginViewModel,
                     openDrawer = { scope.launch { drawerState.open() } }
                 )
-            }
-            composable("testing") {
-                TestingScreen()
             }
         }
     }
