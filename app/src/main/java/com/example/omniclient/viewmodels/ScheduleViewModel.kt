@@ -32,163 +32,67 @@ class ScheduleViewModel(
         )
     }
 
-    private val _schedule = MutableStateFlow<ScheduleResponse?>(null)
-    val schedule: StateFlow<ScheduleResponse?> = _schedule.asStateFlow()
+    // Кэш всех недель
+    private val _weeks = MutableStateFlow<Map<Int, ScheduleResponse?>>(emptyMap())
+    val weeks: StateFlow<Map<Int, ScheduleResponse?>> = _weeks.asStateFlow()
 
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    // Для отслеживания загрузки по неделям
+    private val _loadingWeeks = MutableStateFlow<Set<Int>>(emptySet())
+    val loadingWeeks: StateFlow<Set<Int>> = _loadingWeeks.asStateFlow()
 
-    private val _errorMessage = MutableStateFlow<String?>(null)
-    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
-
-    private val _currentDayIndex = MutableStateFlow(0)
-    val currentDayIndex: StateFlow<Int> = _currentDayIndex.asStateFlow()
-
-    var currentWeek = 0
-
-    private val weekCache = mutableMapOf<Int, ScheduleResponse?>()
-    private val selectedDayIndexPerWeek = mutableMapOf<Int, Int>()
-    private val firstLoadPerWeek = mutableSetOf<Int>()
-
-    private var isFirstLoad = true
-    private var userSelectedDayIndex: Int? = null
+    // Для ошибок по неделям
+    private val _errorWeeks = MutableStateFlow<Map<Int, String?>>(emptyMap())
+    val errorWeeks: StateFlow<Map<Int, String?>> = _errorWeeks.asStateFlow()
 
     init {
-        loadSchedule()
-        Log.d("Dev:Schedule", "Navigate")
+        preloadWeeksFromDb(0)
     }
 
-    private fun loadSchedule(week: Int = currentWeek, setDayIndex: Int? = null) {
-        Log.d("Dev:Schedule", "Navigate")
+    // Получить расписание для недели
+    fun getScheduleForWeek(week: Int): ScheduleResponse? = _weeks.value[week]
+
+    // Загрузить расписание для недели (если нет в кэше)
+    fun ensureWeekLoaded(week: Int) {
+        if (_weeks.value.containsKey(week) || _loadingWeeks.value.contains(week)) return
+        _loadingWeeks.value = _loadingWeeks.value + week
         viewModelScope.launch {
-            _errorMessage.value = null
-
-            val cachedSchedule = weekCache[week]
-            if (cachedSchedule != null) {
-                Log.d("Dev:Schedule", "Cached was not null")
-                _schedule.value = cachedSchedule
-                _isLoading.value = false
-                currentWeek = week
-                val savedIndex = selectedDayIndexPerWeek[week]
-                val daysOfWeek = cachedSchedule.days.values.toList()
-                val dayIndex = when {
-                    userSelectedDayIndex != null -> userSelectedDayIndex!!
-                    setDayIndex != null -> setDayIndex
-                    savedIndex != null -> savedIndex
-                    else -> 0
+            try {
+                val local = scheduleRepository.getScheduleFromDb(week)
+                if (local != null) {
+                    _weeks.value = _weeks.value + (week to local)
                 }
-                _currentDayIndex.value = dayIndex
-                userSelectedDayIndex = null // сбрасываем после применения
-                return@launch
-            } else {
-                Log.d("Dev:Schedule", "Cached was null")
-                _isLoading.value = true
-            }
-
-            val localSchedule = scheduleRepository.getScheduleFromDb(week)
-            if (localSchedule != null) {
-                _schedule.value = localSchedule
-                weekCache[week] = localSchedule
-                if (!selectedDayIndexPerWeek.containsKey(week)) {
-                    // Первый вход на неделю
-                    val daysOfWeek = localSchedule.days.values.toList()
-                    val currentDayOfWeek = getCurrentDayOfWeek(localSchedule.curdate)
-                    val initialPage = daysOfWeek.indexOf(currentDayOfWeek)
-                    val idx = if (week == 0 && initialPage != -1) initialPage else 0
-                    _currentDayIndex.value = idx
-                    selectedDayIndexPerWeek[week] = idx
+                val remote = scheduleRepository.fetchAndUpdateSchedule(week)
+                if (remote != null) {
+                    _weeks.value = _weeks.value + (week to remote)
                 }
-                _isLoading.value = false
-            } else if (cachedSchedule == null) {
-                // Только если нет кэша и нет локального расписания — показываем лоадер
-                _isLoading.value = true
+            } catch (e: Exception) {
+                _errorWeeks.value = _errorWeeks.value + (week to e.message)
+            } finally {
+                _loadingWeeks.value = _loadingWeeks.value - week
             }
-            val remoteSchedule = scheduleRepository.fetchAndUpdateSchedule(week)
-            if (remoteSchedule != null) {
-                weekCache[week] = remoteSchedule
-                if (_schedule.value != remoteSchedule) {
-                    _schedule.value = remoteSchedule
-                }
-            }
-            scheduleRepository.cleanupOldWeeks()
-
-            currentWeek = week
-            val savedIndex = selectedDayIndexPerWeek[week]
-            val scheduleToUse = remoteSchedule ?: localSchedule
-            scheduleToUse?.let {
-                val daysOfWeek = it.days.values.toList()
-                val dayIndex = when {
-                    userSelectedDayIndex != null -> userSelectedDayIndex!!
-                    setDayIndex != null -> setDayIndex
-                    savedIndex != null -> savedIndex
-                    else -> 0
-                }
-                _currentDayIndex.value = dayIndex
-                userSelectedDayIndex = null // сбрасываем после применения
-            }
-            _isLoading.value = false
         }
     }
 
-    fun loadNextWeek(setDayIndex: Int = 0) {
-        Log.d("Dev:loadNextWeek",currentWeek.toString())
-        loadSchedule(currentWeek + 1, setDayIndex)
+    // Получить дни недели для недели
+    fun getDaysOfWeek(week: Int): List<String> {
+        return _weeks.value[week]?.days?.values?.toList() ?: emptyList()
     }
 
-    fun loadPreviousWeek(setDayIndex: Int) {
-        Log.d("Dev:loadPreviousWeek",currentWeek.toString())
-        loadSchedule(currentWeek - 1, setDayIndex)
-    }
-
-    suspend fun preloadNextWeek() {
-        val nextWeek = currentWeek + 1
-        Log.d("Dev:preloadNextWeek", "preloading week $nextWeek (current: $currentWeek)")
-        if (!weekCache.containsKey(nextWeek)) {
-            // Сначала из БД, потом из сети
-            val local = scheduleRepository.getScheduleFromDb(nextWeek)
-            if (local != null) weekCache[nextWeek] = local
-            val remote = scheduleRepository.fetchAndUpdateSchedule(nextWeek)
-            if (remote != null) weekCache[nextWeek] = remote
-            scheduleRepository.cleanupOldWeeks()
-        }
-    }
-
-    suspend fun preloadPreviousWeek() {
-        val prevWeek = currentWeek - 1
-        Log.d("Dev:preloadPreviousWeek", "preloading week $prevWeek (current: $currentWeek)")
-        if (!weekCache.containsKey(prevWeek)) {
-            val local = scheduleRepository.getScheduleFromDb(prevWeek)
-            if (local != null) weekCache[prevWeek] = local
-            val remote = scheduleRepository.fetchAndUpdateSchedule(prevWeek)
-            if (remote != null) weekCache[prevWeek] = remote
-            scheduleRepository.cleanupOldWeeks()
-        }
-    }
-
-    fun getLessonsForDayAtIndex(index: Int): List<Lesson> {
-        val daysOfWeek = getDaysOfWeek()
+    // Получить уроки для дня недели (по индексу) для недели
+    fun getLessonsForDayAtIndex(week: Int, index: Int): List<Lesson> {
+        val daysOfWeek = getDaysOfWeek(week)
         val dayOfWeek = daysOfWeek.getOrNull(index)
-
-        return if (dayOfWeek != null && _schedule.value != null) {
-            getLessonsForDay(_schedule.value!!, dayOfWeek)
+        val schedule = _weeks.value[week]
+        return if (dayOfWeek != null && schedule != null) {
+            getLessonsForDay(schedule, dayOfWeek)
         } else {
             emptyList()
         }
     }
 
-    fun onDaySelected(index: Int, week: Int = currentWeek) {
-        _currentDayIndex.value = index
-        selectedDayIndexPerWeek[week] = index
-        userSelectedDayIndex = index
-    }
-
-    fun getDaysOfWeek(): List<String> {
-        return _schedule.value?.days?.values?.toList() ?: emptyList()
-    }
-
     fun getDisplayDayWithDate(index: Int): String {
-        val schedule = _schedule.value ?: return getDaysOfWeek().getOrNull(index) ?: ""
-        val daysList = getDaysOfWeek()
+        val schedule = _weeks.value[index] ?: return getDaysOfWeek(index).getOrNull(index) ?: ""
+        val daysList = getDaysOfWeek(index)
         val daysMap = schedule.days
         val datesMap = schedule.dates
 
@@ -225,14 +129,24 @@ class ScheduleViewModel(
         }
     }
 
-    fun getTodayDayIndex(): Int? {
-        val schedule = _schedule.value ?: return null
-        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Calendar.getInstance().time)
-        val daysList = getDaysOfWeek()
-        val daysMap = schedule.days
-        val datesMap = schedule.dates
+    // Подгрузить соседние недели (слева и справа), если их нет в кэше
+    fun ensureAdjacentWeeksLoaded(centerWeek: Int) {
+        val left = centerWeek - 1
+        val right = centerWeek + 1
+        if (!weeks.value.containsKey(left)) ensureWeekLoaded(left)
+        if (!weeks.value.containsKey(right)) ensureWeekLoaded(right)
+        // Очистка старых недель, оставляем диапазон [centerWeek-2, ..., centerWeek+2]
+        viewModelScope.launch {
+            scheduleRepository.cleanupOldWeeks(listOf(centerWeek - 2, left, centerWeek, right, centerWeek + 2))
+        }
+    }
 
-        val todayKey = datesMap.entries.find { it.value == today }?.key ?: return null
-        return daysMap.keys.indexOf(todayKey)
+    // Предзагрузка недель из БД для мгновенного отображения
+    fun preloadWeeksFromDb(centerWeek: Int) {
+        viewModelScope.launch {
+            val weeksToLoad = (centerWeek - 2)..(centerWeek + 2)
+            val loaded = weeksToLoad.associateWith { scheduleRepository.getScheduleFromDb(it) }
+            _weeks.value = _weeks.value + loaded.filterValues { it != null }
+        }
     }
 }

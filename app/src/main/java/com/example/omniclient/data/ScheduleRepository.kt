@@ -39,7 +39,7 @@ class ScheduleRepository(
         return remote
     }
 
-    suspend fun cleanupOldWeeks() {
-        scheduleDao.deleteOldWeeks(username, listOf(-1, 0, 1))
+    suspend fun cleanupOldWeeks(weeks: List<Int>) {
+        scheduleDao.deleteOldWeeks(username, weeks)
     }
 } 

@@ -48,6 +48,7 @@ import com.example.omniclient.components.NavigationDrawer
 import androidx.compose.material3.CircularProgressIndicator
 import com.example.omniclient.ui.attendance.AttendanceScreen
 import com.example.omniclient.ui.homework.HomeworkScreen
+import com.example.omniclient.ui.testing.TestingScreen
 
 
 class MainActivity : ComponentActivity() {
@@ -103,6 +104,9 @@ fun MyApp() {
     LaunchedEffect(Unit) {
         val savedUsername = loginViewModel.authPreferences.getUsername()
         val savedPassword = loginViewModel.authPreferences.getPassword()
+        if (!savedUsername.isNullOrEmpty()) {
+            loginViewModel.loadScheduleFromDbForUser(savedUsername)
+        }
         Log.d("Dev:Login", "tryAutoLogin")
         if (!triedAutoLogin && !savedUsername.isNullOrEmpty() && !savedPassword.isNullOrEmpty()) {
             Log.d("Dev:Login", "tryAutoLogin first if")
@@ -124,7 +128,16 @@ fun MyApp() {
         }
     }
 
-    if (autoLoginInProgress) {
+    LaunchedEffect(schedule) {
+        val currentRoute = navBackStackEntry?.destination?.route
+        if (schedule != null && currentRoute == "login") {
+            navController.navigate("schedule") {
+                popUpTo("login") { inclusive = true }
+            }
+        }
+    }
+
+    if (autoLoginInProgress && schedule == null) {
         Log.d("Dev:Login", "autoLogin")
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
@@ -142,6 +155,7 @@ fun MyApp() {
         onUserSelected = { user ->
             scope.launch {
                 loginViewModel.logout()
+                loginViewModel.loadScheduleFromDbForUser(user.username)
                 loginViewModel.selectUser(
                     user,
                     onAutoLoginSuccess = {
@@ -190,12 +204,11 @@ fun MyApp() {
                 }
             }
             composable("schedule") {
-                val currentCsrfToken = csrfToken
-                if (currentCsrfToken != null) {
+                if (schedule != null) {
                     ScheduleScreen(
                         navController = navController,
                         apiService = apiService,
-                        csrfToken = currentCsrfToken,
+                        csrfToken = csrfToken ?: "",
                         openDrawer = { scope.launch { drawerState.open() } },
                         loginViewModel = loginViewModel
                     )
@@ -206,7 +219,7 @@ fun MyApp() {
                         }
                     }
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Ошибка: CSRF-токен не найден. Возврат на экран входа...")
+                        Text("Ошибка: расписание не найдено. Возврат на экран входа...")
                     }
                 }
             }
@@ -223,6 +236,9 @@ fun MyApp() {
                     loginViewModel = loginViewModel,
                     openDrawer = { scope.launch { drawerState.open() } }
                 )
+            }
+            composable("testing") {
+                TestingScreen()
             }
         }
     }

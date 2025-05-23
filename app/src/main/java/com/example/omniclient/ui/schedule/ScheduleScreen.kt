@@ -1,6 +1,7 @@
 package com.example.omniclient.ui.schedule
 
 import LessonCard
+import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -58,9 +59,12 @@ import java.util.Calendar
 import java.util.Locale
 import kotlinx.coroutines.flow.first
 import com.google.gson.Gson
+import java.time.LocalDate
+import java.time.format.TextStyle
+import java.time.temporal.WeekFields
 
 class ScheduleViewModelFactory(
-    private val context: android.content.Context,
+    private val context: Context,
     private val apiService: ApiService,
     private val csrfToken: String,
     private val username: String
@@ -89,183 +93,152 @@ fun ScheduleScreen(
         factory = ScheduleViewModelFactory(context, apiService, csrfToken, username)
     )
 
-    val schedule by viewModel.schedule.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
-    val currentDayIndex by viewModel.currentDayIndex.collectAsState()
+    // --- Бесконечный дневной пейджер ---
+    val initialPage = 5000
+    val pagerState = rememberPagerState(
+        initialPage = initialPage,
+        initialPageOffsetFraction = 0F,
+        pageCount = { 10000 }
+    )
+    val weeks by viewModel.weeks.collectAsState()
+    val loadingWeeks by viewModel.loadingWeeks.collectAsState()
+    val errorWeeks by viewModel.errorWeeks.collectAsState()
 
-    val daysOfWeek = viewModel.getDaysOfWeek()
-    val daysWithFakes = listOf("fakePrev") + daysOfWeek + listOf("fakeNext")
-    val isDataReady = currentDayIndex >= 0 && schedule != null
+    val today = remember { LocalDate.now() }
+    val currentDate = today.plusDays((pagerState.currentPage - initialPage).toLong())
+    val weekFields = WeekFields.of(Locale.getDefault())
+    val currentWeek = currentDate.get(weekFields.weekOfWeekBasedYear()) - today.get(weekFields.weekOfWeekBasedYear())
+    val weekYear = currentDate.get(weekFields.weekBasedYear())
+    val weekKey = (weekYear - today.get(weekFields.weekBasedYear())) * 52 + currentWeek // уникальный ключ недели
+    val dayOfWeek = currentDate.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
+    val dayOfWeekIndex = currentDate.dayOfWeek.value - 1 // 0 - Пн, 6 - Вс
 
-    if (isDataReady) {
-        val pagerState = rememberPagerState(
-            initialPage = currentDayIndex + 1,
-            initialPageOffsetFraction = 0f,
-            pageCount = { daysWithFakes.size }
-        )
+    // Подгружаем нужную неделю
+    LaunchedEffect(weekKey) {
+        viewModel.ensureWeekLoaded(weekKey)
+    }
 
-        val todayIndex = viewModel.getTodayDayIndex()
+    // Подгружаем соседние недели при смене недели
+    LaunchedEffect(weekKey) {
+        viewModel.ensureAdjacentWeeksLoaded(weekKey)
+    }
 
-        LaunchedEffect(viewModel.currentWeek) {
-            viewModel.preloadPreviousWeek()
-            viewModel.preloadNextWeek()
-        }
+    // При первом показе экрана — мгновенно подгружаем недели из БД
+    LaunchedEffect(Unit) {
+        viewModel.preloadWeeksFromDb(weekKey)
+    }
 
-        LaunchedEffect(pagerState.currentPage) {
-            when (pagerState.currentPage) {
-                0 -> {
-                    viewModel.loadPreviousWeek(setDayIndex = viewModel.getDaysOfWeek().lastIndex)
-                    viewModel.onDaySelected(viewModel.getDaysOfWeek().lastIndex)
-                    pagerState.scrollToPage(daysWithFakes.lastIndex - 1)
-                }
-                daysWithFakes.lastIndex -> {
-                    viewModel.loadNextWeek(setDayIndex = 0)
-                    viewModel.onDaySelected(0)
-                    pagerState.scrollToPage(1)
-                }
-                else -> {
-                    viewModel.onDaySelected(pagerState.currentPage - 1)
-                }
-            }
-        }
+    val schedule = weeks[weekKey]
+    val isLoading = loadingWeeks.contains(weekKey)
+    val errorMessage = errorWeeks[weekKey]
+    val daysOfWeek = viewModel.getDaysOfWeek(weekKey)
+    val lessons = viewModel.getLessonsForDayAtIndex(weekKey, dayOfWeekIndex)
 
-        LaunchedEffect(currentDayIndex) {
-            val targetPage = currentDayIndex + 1
-            if (pagerState.currentPage != targetPage) {
-                pagerState.scrollToPage(targetPage)
-            }
-        }
-
-        Scaffold(
-            topBar = {
-                TopAppBarComponent(
-                    title = "Расписание",
-                    onLogoutClick = {
-                        loginViewModel.logout()
-                        navController.navigate("login") {
-                            popUpTo("login") { inclusive = true }
-                        }
-                    },
-                    navController = navController,
-                    onMenuClick = openDrawer
-                )
-            }
-        ){
-
-            innerPadding ->
-            Column(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-            ){
-                when {
-                    isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(color = Color.Red, strokeWidth = 4.dp)
-                        }
+    Scaffold(
+        topBar = {
+            TopAppBarComponent(
+                title = "Расписание",
+                onLogoutClick = {
+                    loginViewModel.logout()
+                    navController.navigate("login") {
+                        popUpTo("login") { inclusive = true }
                     }
-                    errorMessage != null -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = errorMessage ?: "Неизвестная ошибка", color = MaterialTheme.colorScheme.error)
-                        }
-                    }
-                    schedule != null -> {
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(top = 4.dp, bottom = 16.dp),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            repeat(daysOfWeek.size) { iteration ->
-                                val color = if (pagerState.currentPage == iteration + 1) Color(0xFFDB173F) else Color.LightGray
-                                Box(
-                                    modifier = Modifier
-                                        .padding(horizontal = 2.dp)
-                                        .background(color, RectangleShape)
-                                        .weight(1f)
-                                        .height(2.dp)
-                                )
-                            }
-                        }
-
-                        HorizontalPager(
-                            state = pagerState,
-                            modifier = Modifier.fillMaxSize(),
-                            beyondViewportPageCount = 1
-                        ) { page ->
-                            when (page) {
-                                0, daysWithFakes.lastIndex -> {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize()
-                                    ) {}
-                                }
-                                else -> {
-                                    val dayOfWeek = daysOfWeek.getOrNull(page - 1)
-                                    if (dayOfWeek != null) {
-                                        val lessons = viewModel.getLessonsForDayAtIndex(page - 1)
-                                        LazyColumn(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(horizontal = 16.dp),
-                                            horizontalAlignment = Alignment.CenterHorizontally
-                                        ) {
-                                            item {
-                                                Text(text = viewModel.getDisplayDayWithDate(page - 1), fontWeight = FontWeight.SemiBold)
-                                            }
-                                            item { Spacer(modifier = Modifier.height(12.dp)) }
-                                            if (lessons.isEmpty()) {
-                                                item { Text(text = "Пар нет") }
-                                            } else {
-                                                items(lessons.sortedBy { it.lenta }) { lesson ->
-                                                    LessonCard(
-                                                        lesson,
-                                                        isCurrentDay = (page - 1) == todayIndex,
-                                                        onPresentClick = { clickedLesson -> 
-                                                            navController.navigate("attendance/${clickedLesson.lenta}")
-                                                        },
-                                                        onMaterialsClick = {clickedLesson -> Log.d("Dev:ScheduleScreen", "${clickedLesson.name_spec}")}
-                                                    )
-                                                    Spacer(modifier = Modifier.height(8.dp))
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        Box(
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text("День не найден")
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    else -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Загрузка расписания...")
-                        }
-                    }
-                }
-            }
+                },
+                navController = navController,
+                onMenuClick = openDrawer
+            )
         }
-    } else {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
         ) {
-            CircularProgressIndicator(color = Color.Red, strokeWidth = 4.dp)
+            // Индикация дней недели
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp, bottom = 16.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                daysOfWeek.forEachIndexed { idx, dayName ->
+                    val color = if (idx == dayOfWeekIndex) Color(0xFFDB173F) else Color.LightGray
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 2.dp)
+                            .background(color, RectangleShape)
+                            .weight(1f)
+                            .height(2.dp)
+                    )
+                }
+            }
+
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+            ) { page ->
+                val date = today.plusDays((page - initialPage).toLong())
+                val weekFields = WeekFields.of(Locale.getDefault())
+                val week = date.get(weekFields.weekOfWeekBasedYear()) - today.get(weekFields.weekOfWeekBasedYear())
+                val weekYear = date.get(weekFields.weekBasedYear())
+                val weekKey = (weekYear - today.get(weekFields.weekBasedYear())) * 52 + week
+                val dayOfWeekIdx = date.dayOfWeek.value - 1
+                val daysOfWeekPage = viewModel.getDaysOfWeek(weekKey)
+                val lessons = viewModel.getLessonsForDayAtIndex(weekKey, dayOfWeekIdx)
+                val isLoadingPage = loadingWeeks.contains(weekKey)
+                val errorPage = errorWeeks[weekKey]
+
+                if (daysOfWeekPage.isNotEmpty()) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        item {
+                            Text(text = formatDayWithDate(date), fontWeight = FontWeight.SemiBold)
+                        }
+                        item { Spacer(modifier = Modifier.height(12.dp)) }
+                        if (lessons.isEmpty()) {
+                            item { Text(text = "Пар нет") }
+                        } else {
+                            items(lessons.sortedBy { it.lenta }) { lesson ->
+                                LessonCard(
+                                    lesson,
+                                    isCurrentDay = (date == today),
+                                    onPresentClick = { clickedLesson ->
+                                        navController.navigate("attendance/${clickedLesson.lenta}")
+                                    },
+                                    onMaterialsClick = { clickedLesson -> Log.d("Dev:ScheduleScreen", "${clickedLesson.name_spec}") }
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
+                    }
+                } else if (isLoadingPage) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = Color.Red, strokeWidth = 4.dp)
+                    }
+                } else if (errorPage != null) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = errorPage, color = MaterialTheme.colorScheme.error)
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Загрузка расписания...")
+                    }
+                }
+            }
         }
     }
 }
@@ -316,4 +289,27 @@ fun mergeSchedules(schedule1: ScheduleResponse, schedule2: ScheduleResponse): Sc
         curdate = schedule1.curdate,
         start_end = schedule1.start_end
     )
+}
+
+// Функция для форматирования даты в стиле "Понедельник, 19 Май"
+fun formatDayWithDate(date: LocalDate): String {
+    val dayOfWeek = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale("ru"))
+        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString() }
+    val day = date.dayOfMonth.toString()
+    val month = when (date.month.value) {
+        1 -> "Января"
+        2 -> "Февраля"
+        3 -> "Марта"
+        4 -> "Апреля"
+        5 -> "Мая"
+        6 -> "Июня"
+        7 -> "Июля"
+        8 -> "Августа"
+        9 -> "Сентября"
+        10 -> "Октября"
+        11 -> "Ноября"
+        12 -> "Декабря"
+        else -> date.month.getDisplayName(TextStyle.FULL, Locale("ru"))
+    }
+    return "$dayOfWeek, $day $month"
 }

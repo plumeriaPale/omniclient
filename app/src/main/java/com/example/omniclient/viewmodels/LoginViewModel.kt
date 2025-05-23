@@ -201,6 +201,18 @@ class LoginViewModel(
         setTriedAutoLogin(true)
     }
 
+    // Загрузка расписания из БД для пользователя (без логина)
+    fun loadScheduleFromDbForUser(username: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val scheduleDao = DatabaseProvider.getDatabase(context).scheduleDao()
+            val scheduleEntity = scheduleDao.getSchedule(username, 0)
+            val schedule = scheduleEntity?.scheduleJson?.let { com.google.gson.Gson().fromJson(it, com.example.omniclient.api.ScheduleResponse::class.java) }
+            withContext(Dispatchers.Main) {
+                _schedule.value = schedule
+            }
+        }
+    }
+
     // Очередь на отправку оценок
     data class HomeworkSendTask(
         val homework: Homework,
