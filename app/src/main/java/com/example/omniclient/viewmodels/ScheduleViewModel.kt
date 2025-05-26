@@ -9,9 +9,7 @@ import com.example.omniclient.api.Lesson
 import com.example.omniclient.api.ScheduleResponse
 import com.example.omniclient.data.ScheduleRepository
 import com.example.omniclient.data.db.DatabaseProvider
-import com.example.omniclient.getCurrentDayOfWeek
 import com.example.omniclient.getLessonsForDay
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -53,9 +51,6 @@ class ScheduleViewModel(
         preloadWeeksFromDb(0)
     }
 
-    // Получить расписание для недели
-    fun getScheduleForWeek(week: Int): ScheduleResponse? = _weeks.value[week]
-
     // Загрузить расписание для недели (если нет в кэше)
     fun ensureWeekLoaded(week: Int) {
         if (_weeks.value.containsKey(week) || _loadingWeeks.value.contains(week)) return
@@ -92,45 +87,6 @@ class ScheduleViewModel(
             getLessonsForDay(schedule, dayOfWeek)
         } else {
             emptyList()
-        }
-    }
-
-    fun getDisplayDayWithDate(index: Int): String {
-        val schedule = _weeks.value[index] ?: return getDaysOfWeek(index).getOrNull(index) ?: ""
-        val daysList = getDaysOfWeek(index)
-        val daysMap = schedule.days
-        val datesMap = schedule.dates
-
-        val dayKey = daysMap.keys.elementAtOrNull(index) ?: return daysList.getOrNull(index) ?: ""
-        val dayName = daysList.getOrNull(index) ?: ""
-        val dateStr = datesMap[dayKey]?.let { formatDateForDisplay(it) } ?: ""
-        return if (dateStr.isNotEmpty()) "$dayName, $dateStr" else dayName
-    }
-
-    fun formatDateForDisplay(date: String): String {
-        return try {
-            val parts = date.split("-")
-            if (parts.size == 3) {
-                val day = parts[2]
-                val month = when (parts[1]) {
-                    "01" -> "Январь"
-                    "02" -> "Февраль"
-                    "03" -> "Март"
-                    "04" -> "Апрель"
-                    "05" -> "Май"
-                    "06" -> "Июнь"
-                    "07" -> "Июль"
-                    "08" -> "Август"
-                    "09" -> "Сентябрь"
-                    "10" -> "Октябрь"
-                    "11" -> "Ноябрь"
-                    "12" -> "Декабрь"
-                    else -> parts[1]
-                }
-                "$day $month"
-            } else date
-        } catch (e: Exception) {
-            date
         }
     }
 

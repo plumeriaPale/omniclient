@@ -230,10 +230,11 @@ fun MyApp() {
                     }
                 }
             }
-            composable("attendance/{lenta}") { backStackEntry ->
+            composable("attendance/{lenta}?divisionId={divisionId}") { backStackEntry ->
                 val lenta = backStackEntry.arguments?.getString("lenta") ?: ""
+                val divisionId = backStackEntry.arguments?.getString("divisionId")?.toIntOrNull() ?: 0
                 AttendanceScreen(
-                    navController = navController, lenta = lenta,
+                    navController = navController, lenta = lenta, divisionId = divisionId,
                     loginViewModel = loginViewModel
                 )
             }

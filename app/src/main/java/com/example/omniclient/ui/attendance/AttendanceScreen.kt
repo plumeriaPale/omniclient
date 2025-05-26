@@ -78,6 +78,7 @@ data class PresentStudent(
 fun AttendanceScreen(
     navController: NavController,
     lenta: String,
+    divisionId: Int,
     loginViewModel: LoginViewModel
 ) {
     val context = LocalContext.current
@@ -96,9 +97,9 @@ fun AttendanceScreen(
         isLoading = true
         errorText = null
         try {
-            // divisionId определяем по lenta: если < 300, то академия, иначе колледж (пример, поправь если логика другая)
-            val divisionId = if (lenta.toInt() < 300) 74 else 458
-            val studentsList = attendanceRepository.getPresents(divisionId, mapOf("lenta" to lenta.toInt()))
+            val division = divisionId
+            Log.d("Dev: Attendance", "divisionId: ${divisionId}")
+            val studentsList = attendanceRepository.getPresents(division, mapOf("lenta" to lenta.toInt()))
             students = studentsList ?: emptyList()
             if (studentsList == null) {
                 errorText = "Ошибка загрузки присутствующих"

@@ -203,12 +203,13 @@ fun ScheduleScreen(
                         if (lessons.isEmpty()) {
                             item { Text(text = "Пар нет") }
                         } else {
+
                             items(lessons.sortedBy { it.lenta }) { lesson ->
                                 LessonCard(
                                     lesson,
                                     isCurrentDay = (date == today),
                                     onPresentClick = { clickedLesson ->
-                                        navController.navigate("attendance/${clickedLesson.lenta}")
+                                        navController.navigate("attendance/${clickedLesson.lenta}?divisionId=${clickedLesson.divisionId}")
                                     },
                                     onMaterialsClick = { clickedLesson -> Log.d("Dev:ScheduleScreen", "${clickedLesson.name_spec}") }
                                 )

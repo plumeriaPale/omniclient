@@ -1,5 +1,6 @@
 package com.example.omniclient.data
 
+import android.util.Log
 import com.example.omniclient.api.ApiService
 import com.example.omniclient.ui.attendance.PresentStudent
 import com.example.omniclient.ui.attendance.PresentsResponse
