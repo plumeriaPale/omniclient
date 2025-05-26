@@ -32,7 +32,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.omniclient.api.apiService
+import com.example.omniclient.data.AttendanceRepository
+import com.example.omniclient.api.AcademyClient
+import com.example.omniclient.api.CollegeClient
 import com.example.omniclient.components.TopAppBarComponent
 import com.example.omniclient.viewmodels.LoginViewModel
 import com.google.gson.Gson
@@ -83,21 +85,23 @@ fun AttendanceScreen(
     var isLoading by remember { mutableStateOf(true) }
     var errorText by remember { mutableStateOf<String?>(null) }
 
+    val attendanceRepository = remember {
+        AttendanceRepository(
+            academyClient = AcademyClient,
+            collegeClient = CollegeClient
+        )
+    }
+
     LaunchedEffect(lenta) {
         isLoading = true
         errorText = null
         try {
-            val response = withContext(Dispatchers.IO) {
-                apiService.getPresents(mapOf("lenta" to lenta.toInt()))
-            }
-            if (response.isSuccessful) {
-                val body = response.body()?.string()
-                Log.d("Dev: Attendance", "Ответ сервера: $body")
-                val presents = body?.let { Gson().fromJson(it, PresentsResponse::class.java) }
-                students = presents?.students ?: emptyList()
-            } else {
-                errorText = "Ошибка загрузки: ${response.code()}"
-                Log.d("Dev: Attendance", "Ошибка загрузки: ${response.code()}")
+            // divisionId определяем по lenta: если < 300, то академия, иначе колледж (пример, поправь если логика другая)
+            val divisionId = if (lenta.toInt() < 300) 74 else 458
+            val studentsList = attendanceRepository.getPresents(divisionId, mapOf("lenta" to lenta.toInt()))
+            students = studentsList ?: emptyList()
+            if (studentsList == null) {
+                errorText = "Ошибка загрузки присутствующих"
             }
         } catch (e: Exception) {
             errorText = "Ошибка: ${e.message}"

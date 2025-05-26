@@ -46,6 +46,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import com.example.omniclient.components.NavigationDrawer
 import androidx.compose.material3.CircularProgressIndicator
+import com.example.omniclient.api.CollegeClient
 import com.example.omniclient.ui.attendance.AttendanceScreen
 import com.example.omniclient.ui.homework.HomeworkScreen
 
@@ -53,6 +54,11 @@ import com.example.omniclient.ui.homework.HomeworkScreen
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            Log.e("GlobalException", "Uncaught exception in thread "+thread.name, throwable)
+            // Можно добавить показ тоста или отправку логов
+        }
 
         setContent {
             val systemUiController = rememberSystemUiController()
@@ -155,13 +161,14 @@ fun MyApp() {
             scope.launch {
                 loginViewModel.logout()
                 loginViewModel.loadScheduleFromDbForUser(user.username)
+                navController.navigate("schedule") {
+                    popUpTo("login") { inclusive = true }
+                }
+                scope.launch { drawerState.close() }
                 loginViewModel.selectUser(
                     user,
                     onAutoLoginSuccess = {
-                        navController.navigate("schedule") {
-                            popUpTo("login") { inclusive = true }
-                        }
-                        scope.launch { drawerState.close() }
+                        // Можно обновить расписание, если нужно
                     },
                     onAutoLoginFailed = {
                         Toast.makeText(context, "Ошибка автологина", Toast.LENGTH_SHORT).show()
@@ -178,7 +185,8 @@ fun MyApp() {
                 popUpTo("login") { inclusive = true }
             }
             scope.launch { drawerState.close() }
-        }
+        },
+        loginViewModel = loginViewModel
     ) {
         NavHost(navController, startDestination = "login") {
             composable("login") {
@@ -246,61 +254,4 @@ fun MyApp() {
         }
     }
     */
-}
-
-
-suspend fun fetchSchedule(csrfToken: String, week: Int = 0): ScheduleResponse? {
-    return try {
-        val request = ScheduleRequest(week = week)
-
-        val cookies = (okHttpClient.cookieJar as MyCookieJar)
-            .loadForRequest("https://omni.top-academy.ru".toHttpUrlOrNull()!!)
-        println("Куки перед запросом расписания: "+ cookies.joinToString { "${it.name}=${it.value}" })
-
-        val response = apiService.getSchedule(csrfToken, request)
-
-        if (response.isSuccessful) {
-            response.body()
-        } else {
-            println("Ошибка получения расписания: ${response.code()} - ${response.message()}")
-            null
-        }
-    } catch (e: Exception) {
-        println("Исключение при получении расписания: ${e.message}")
-        null
-    }
-}
-
-suspend fun fetchCombinedSchedule(csrfToken: String, week: Int = 0): ScheduleResponse? {
-    if (!changeCity(458)) {
-        Log.d("Dev:Schedule", "Error with change city in MainActivity.kt")
-        return null
-    }
-
-    val schedule1 = fetchSchedule(csrfToken, week)?.let { response ->
-        response.copy(
-            body = response.body.mapValues { (_, dayLessons) ->
-                dayLessons.mapValues { (_, lesson) ->
-                    lesson.copy(divisionId = 458) // Колледж
-                }
-            }
-        )
-    } ?: return null
-
-    if (!changeCity(74)) {
-        Log.d("Dev:Schedule", "Error with change city in MainActivity.kt")
-        return null
-    }
-
-    val schedule2 = fetchSchedule(csrfToken, week)?.let { response ->
-        response.copy(
-            body = response.body.mapValues { (_, dayLessons) ->
-                dayLessons.mapValues { (_, lesson) ->
-                    lesson.copy(divisionId = 74) // Академия
-                }
-            }
-        )
-    } ?: return null
-
-    return mergeSchedules(schedule1, schedule2)
 }

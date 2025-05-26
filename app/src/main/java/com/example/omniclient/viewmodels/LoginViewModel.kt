@@ -14,8 +14,6 @@ import com.example.omniclient.api.ApiService
 import com.example.omniclient.api.LoginFormData
 import com.example.omniclient.api.LoginRequest
 import com.example.omniclient.api.ScheduleResponse
-import com.example.omniclient.api.initializeCsrfToken
-import com.example.omniclient.fetchCombinedSchedule
 import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import com.example.omniclient.data.db.DatabaseProvider
@@ -25,10 +23,15 @@ import com.example.omniclient.ui.homework.generateSaveHomeworkBody
 import com.example.omniclient.ui.schedule.changeCity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.Channel
 import java.util.concurrent.ConcurrentLinkedQueue
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import java.net.UnknownHostException
+import com.example.omniclient.api.AcademyClient
+import com.example.omniclient.api.CollegeClient
+import com.example.omniclient.api.academyCookieJar
+import com.example.omniclient.api.collegeCookieJar
+import com.example.omniclient.api.ProfileResponse
 
 class LoginViewModel(
     private val context: Context,
@@ -70,6 +73,9 @@ class LoginViewModel(
         Log.d("Dev:Login", "setTriedAutoLogin")
         _triedAutoLogin.value = value }
 
+    private val _miniProfile = MutableStateFlow<ProfileResponse?>(null)
+    val miniProfile: StateFlow<ProfileResponse?> = _miniProfile.asStateFlow()
+
     private val userDao by lazy {
         DatabaseProvider.getDatabase(context).userDao()
     }
@@ -77,6 +83,35 @@ class LoginViewModel(
     private fun loadAllUsers() {
         viewModelScope.launch(Dispatchers.IO) {
             _allUsers.value = userDao.getAllUsers()
+        }
+    }
+
+    private fun loadMiniProfile() {
+        viewModelScope.launch {
+            try {
+                val resp = com.example.omniclient.api.AcademyClient.getProfile()
+                Log.d("MiniProfile", "Academy response: isSuccessful=${resp.isSuccessful}, body=${resp.body()}")
+                if (resp.isSuccessful && resp.body() != null) {
+                    Log.d("MiniProfile", "Academy teach_info: ${resp.body()!!.teach_info}")
+                    _miniProfile.value = resp.body()
+                    return@launch
+                }
+            } catch (e: Exception) {
+                Log.e("MiniProfile", "Academy error: ${e.message}", e)
+            }
+            try {
+                val resp = com.example.omniclient.api.CollegeClient.getProfile()
+                Log.d("MiniProfile", "College response: isSuccessful=${resp.isSuccessful}, body=${resp.body()}")
+                if (resp.isSuccessful && resp.body() != null) {
+                    Log.d("MiniProfile", "College teach_info: ${resp.body()!!.teach_info}")
+                    _miniProfile.value = resp.body()
+                    return@launch
+                }
+            } catch (e: Exception) {
+                Log.e("MiniProfile", "College error: ${e.message}", e)
+            }
+            Log.w("MiniProfile", "No mini profile found for user")
+            _miniProfile.value = null
         }
     }
 
@@ -118,6 +153,7 @@ class LoginViewModel(
                     Log.d("Dev:LoginViewModel", "CSRF-токен после входа: $csrfTokenValue")
 
                     if (csrfTokenValue != null) {
+                        loadMiniProfile()
                         onLoginSuccess()
                     } else {
                         _responseText.value = "Авторизация успешна, но не удалось получить CSRF-токен."
@@ -137,45 +173,69 @@ class LoginViewModel(
     }
 
     fun autoLoginIfPossible(onAutoLoginSuccess: () -> Unit, onAutoLoginFailed: (() -> Unit)? = null) {
+        Log.d("Dev: Login", "autoLoginIfPossible")
         val username = authPreferences.getUsername()
         val password = authPreferences.getPassword()
+        Log.d("Dev: Login", "Getting cred's username: ${username}, pass: ${password}")
         if (!username.isNullOrEmpty() && !password.isNullOrEmpty()) {
             _username.value = username
             _password.value = password
             _autoLoginInProgress.value = true
             viewModelScope.launch {
                 val request = LoginRequest(LoginFormData(username = username, password = password))
-                try {
-                    val response = apiService.login(request)
-                    if (response.isSuccessful) {
-                        Log.d("Dev:AuthResponseBody", response.toString())
-                        _isLoggedIn.value = true
-                        _responseText.value = "Успешная авторизация!"
-                        authPreferences.saveCredentials(username, password)
-                        withContext(Dispatchers.IO) {
-                            userDao.insertUser(UserEntity(username, password))
-                        }
-                        val cookies = (okHttpClient.cookieJar as MyCookieJar)
-                            .loadForRequest("https://omni.top-academy.ru".toHttpUrlOrNull()!!)
-                        val csrfTokenValue = cookies.firstOrNull { it.name == "_csrf" }?.value
-                        _csrfToken.value = csrfTokenValue
-                        Log.d("Dev:LoginViewModel", "CSRF-токен после входа: $csrfTokenValue")
-                        _autoLoginInProgress.value = false
-                        if (csrfTokenValue != null) {
+                while (true) {
+                    try {
+                        // Параллельно логинимся в оба клиента
+                        val academyDeferred = async { AcademyClient.loginWithCity(request) }
+                        val collegeDeferred = async { CollegeClient.loginWithCity(request) }
+                        val academyResp = academyDeferred.await()
+                        val collegeResp = collegeDeferred.await()
+                        val academyOk = academyResp.isSuccessful
+                        val collegeOk = collegeResp.isSuccessful
+                        if (academyOk || collegeOk) {
+                            _isLoggedIn.value = true
+                            _responseText.value = "Успешная авторизация!"
+                            authPreferences.saveCredentials(username, password)
+                            withContext(Dispatchers.IO) {
+                                userDao.insertUser(UserEntity(username, password))
+                            }
+                            // Параллельно получаем расписания
+                            val academyScheduleDeferred = async { com.example.omniclient.api.AcademyClient.getSchedule("", com.example.omniclient.api.ScheduleRequest(0)).body() }
+                            val collegeScheduleDeferred = async { com.example.omniclient.api.CollegeClient.getSchedule("", com.example.omniclient.api.ScheduleRequest(0)).body() }
+                            val academySchedule = academyScheduleDeferred.await()
+                            val collegeSchedule = collegeScheduleDeferred.await()
+
+                            Log.d("Dev: Login", "Academy schedule: ${academySchedule}")
+                            Log.d("Dev: Login", "College schedule: ${collegeSchedule}")
+                            val merged = when {
+                                academySchedule != null && collegeSchedule != null -> com.example.omniclient.ui.schedule.mergeSchedules(academySchedule, collegeSchedule)
+                                academySchedule != null -> academySchedule
+                                collegeSchedule != null -> collegeSchedule
+                                else -> null
+                            }
+                            _schedule.value = merged
+                            loadMiniProfile()
+                            _autoLoginInProgress.value = false
                             onAutoLoginSuccess()
+                            break
                         } else {
-                            _responseText.value = "Авторизация успешна, но не удалось получить CSRF-токен."
+                            _responseText.value = "Ошибка входа: Академия: ${academyResp.code()} ${academyResp.message()}, Колледж: ${collegeResp.code()} ${collegeResp.message()}"
+                            _autoLoginInProgress.value = false
                             onAutoLoginFailed?.invoke()
+                            break
                         }
-                    } else {
-                        _responseText.value = "Ошибка: ${response.code()} - ${response.message()}"
-                        _autoLoginInProgress.value = false
-                        onAutoLoginFailed?.invoke()
+                    } catch (e: Exception) {
+                        if (e is UnknownHostException) {
+                            _responseText.value = "Нет соединения с сервером. Повтор через 30 секунд..."
+                            delay(30_000)
+                            continue
+                        } else {
+                            _responseText.value = "Ошибка: ${e.message}"
+                            _autoLoginInProgress.value = false
+                            onAutoLoginFailed?.invoke()
+                            break
+                        }
                     }
-                } catch (e: Exception) {
-                    _responseText.value = "Ошибка: ${e.message}"
-                    _autoLoginInProgress.value = false
-                    onAutoLoginFailed?.invoke()
                 }
             }
         } else {
@@ -189,7 +249,30 @@ class LoginViewModel(
         authPreferences.saveCredentials(user.username, user.password)
         _username.value = user.username
         _password.value = user.password
-        autoLoginIfPossible(onAutoLoginSuccess, onAutoLoginFailed)
+        viewModelScope.launch {
+            Log.d("Dev:LoginViewModel", "[selectUser] Start for user: ${user.username}")
+            academyCookieJar.clearCookies()
+            Log.d("Dev:LoginViewModel", "[selectUser] AcademyClient cookies cleared (direct)")
+            collegeCookieJar.clearCookies()
+            Log.d("Dev:LoginViewModel", "[selectUser] CollegeClient cookies cleared (direct)")
+            val request = LoginRequest(LoginFormData(username = user.username, password = user.password))
+            Log.d("Dev:LoginViewModel", "[selectUser] AcademyClient.loginWithCity for ${user.username}")
+            val academyResp = AcademyClient.loginWithCity(request)
+            Log.d("Dev:LoginViewModel", "[selectUser] AcademyClient login resp: code=${academyResp.code()} msg=${academyResp.message()} body=${academyResp.errorBody()?.string()}")
+            Log.d("Dev:LoginViewModel", "[selectUser] CollegeClient.loginWithCity for ${user.username}")
+            val collegeResp = CollegeClient.loginWithCity(request)
+            Log.d("Dev:LoginViewModel", "[selectUser] CollegeClient login resp: code=${collegeResp.code()} msg=${collegeResp.message()} body=${collegeResp.errorBody()?.string()}")
+            val academyOk = academyResp.isSuccessful
+            val collegeOk = collegeResp.isSuccessful
+            if (academyOk || collegeOk) {
+                loadMiniProfile()
+                Log.d("Dev:LoginViewModel", "[selectUser] Success for user: ${user.username}")
+                onAutoLoginSuccess()
+            } else {
+                Log.d("Dev:LoginViewModel", "[selectUser] Failed for user: ${user.username}")
+                onAutoLoginFailed?.invoke()
+            }
+        }
     }
 
     fun logout() {

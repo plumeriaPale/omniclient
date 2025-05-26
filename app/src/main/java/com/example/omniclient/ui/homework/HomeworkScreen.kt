@@ -56,6 +56,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.graphicsLayer
+import com.example.omniclient.data.HomeworkRepository
 
 data class HomeworkApiResponse(val homework: List<Homework>)
 
@@ -84,30 +85,33 @@ fun HomeworkScreen(
     val collegeQueueCount by HomeworkSendQueue.collegeQueueCount.collectAsState()
     val academyQueueCount by HomeworkSendQueue.academyQueueCount.collectAsState()
 
+    // Инициализация HomeworkRepository (один раз)
+    val homeworkRepository = remember {
+        HomeworkRepository(
+            academyClient = com.example.omniclient.api.AcademyClient,
+            collegeClient = com.example.omniclient.api.CollegeClient
+        )
+    }
+    // Прокидываем в очередь
+    LaunchedEffect(Unit) {
+        com.example.omniclient.ui.homework.HomeworkSendQueue.homeworkRepository = homeworkRepository
+    }
     LaunchedEffect(Unit) {
         // Колледж
         isCollegeLoading = true
         errorText = null
         val collegeLoaded = withContext(Dispatchers.IO) {
             try {
-                changeCity(458)
-                val response = apiService.getNewHomeworks(
-                    mapOf(
-                        "id_tgroups" to "33",
-                        "id_spec" to "56",
-                        "limit" to 10,
-                        "offset" to 0,
-                        "type" to 0,
-                        "transferred" to false,
-                        "year" to "",
-                        "month" to ""
-                    )
-                )
-                if (response.isSuccessful) {
-                    val body = response.body()?.string()
-                    val homeworkList = body?.let { Gson().fromJson(it, HomeworkApiResponse::class.java).homework }
-                    homeworkList
-                } else null
+                homeworkRepository.getHomeworks(458, mapOf(
+                    "id_tgroups" to "33",
+                    "id_spec" to "56",
+                    "limit" to 10,
+                    "offset" to 0,
+                    "type" to 0,
+                    "transferred" to false,
+                    "year" to "",
+                    "month" to ""
+                ))
             } catch (e: Exception) {
                 errorText = "Ошибка загрузки колледжа: ${e.message}"
                 null
@@ -120,24 +124,16 @@ fun HomeworkScreen(
         isAcademyLoading = true
         val academyLoaded = withContext(Dispatchers.IO) {
             try {
-                changeCity(74)
-                val response = apiService.getNewHomeworks(
-                    mapOf(
-                        "id_tgroups" to "33",
-                        "id_spec" to "56",
-                        "limit" to 10,
-                        "offset" to 0,
-                        "type" to 0,
-                        "transferred" to false,
-                        "year" to "",
-                        "month" to ""
-                    )
-                )
-                if (response.isSuccessful) {
-                    val body = response.body()?.string()
-                    val homeworkList = body?.let { Gson().fromJson(it, HomeworkApiResponse::class.java).homework }
-                    homeworkList
-                } else null
+                homeworkRepository.getHomeworks(74, mapOf(
+                    "id_tgroups" to "33",
+                    "id_spec" to "56",
+                    "limit" to 10,
+                    "offset" to 0,
+                    "type" to 0,
+                    "transferred" to false,
+                    "year" to "",
+                    "month" to ""
+                ))
             } catch (e: Exception) {
                 errorText = "Ошибка загрузки академии: ${e.message}"
                 null
@@ -287,8 +283,6 @@ fun HomeworkScreen(
                                             collegeHomework = collegeHomework!!.filter { it.id != hw.id }
                                             HomeworkSendQueue.enqueue(
                                                 HomeworkSendQueue.HomeworkSendTask(hw, mark, comment, 458),
-                                                apiService = apiService,
-                                                changeCity = { division -> changeCity(division) },
                                                 onFail = { failedTask ->
                                                     collegeHomework = (collegeHomework ?: emptyList()) + failedTask.homework
                                                     showFailToast = true
@@ -329,8 +323,6 @@ fun HomeworkScreen(
                                             academyHomework = academyHomework!!.filter { it.id != hw.id }
                                             HomeworkSendQueue.enqueue(
                                                 HomeworkSendQueue.HomeworkSendTask(hw, mark, comment, 74),
-                                                apiService = apiService,
-                                                changeCity = { division -> changeCity(division) },
                                                 onFail = { failedTask ->
                                                     academyHomework = (academyHomework ?: emptyList()) + failedTask.homework
                                                     showFailToast = true

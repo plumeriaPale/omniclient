@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.example.omniclient.data.HomeworkRepository
 
 object HomeworkSendQueue {
     data class HomeworkSendTask(
@@ -26,38 +27,34 @@ object HomeworkSendQueue {
     private val _academyQueueCount = MutableStateFlow(0)
     val academyQueueCount: StateFlow<Int> = _academyQueueCount.asStateFlow()
 
+    lateinit var homeworkRepository: HomeworkRepository
+
     fun enqueue(
         task: HomeworkSendTask,
-        apiService: ApiService,
-        changeCity: suspend (Int) -> Unit,
         onFail: ((HomeworkSendTask) -> Unit)? = null
     ) {
         queue.add(Pair(task, onFail))
         updateQueueCounts()
-        processQueue(apiService, changeCity)
+        processQueue()
     }
 
-    private fun processQueue(
-        apiService: ApiService,
-        changeCity: suspend (Int) -> Unit
-    ) {
+    private fun processQueue() {
         if (isProcessing) return
         isProcessing = true
         CoroutineScope(Dispatchers.IO).launch {
             while (queue.isNotEmpty()) {
                 val (task, onFail) = queue.poll() ?: continue
                 try {
-                    changeCity(task.division)
                     val body = mapOf("HomeworkForm" to generateSaveHomeworkBody(task.homework, task.mark, task.comment))
-                    val response = apiService.saveHomework(body)
-                    if (response.isSuccessful) {
+                    val success = homeworkRepository.sendHomework(task.division, body)
+                    if (success) {
                         Log.d("Dev:HomeworkQueue", "Успешно отправлено: ${task.homework.id}")
                     } else {
-                        Log.e("Dev: Schedule", "Ошибка отправки: ${task.homework.id} code=${response.code()} message=${response.message()} body=${response.errorBody()?.string()}")
+                        Log.e("Dev:HomeworkQueue", "Ошибка отправки: ${task.homework.id}")
                         onFail?.invoke(task)
                     }
                 } catch (e: Exception) {
-                    Log.e("Dev: Schedule", "Исключение при отправке: ${task.homework.id} ${e.message}")
+                    Log.e("Dev:HomeworkQueue", "Исключение при отправке: ${task.homework.id} ${e.message}")
                     onFail?.invoke(task)
                 }
                 updateQueueCounts()

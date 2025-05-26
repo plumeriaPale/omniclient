@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineExceptionHandler
 
 class ScheduleViewModel(
     private val context: Context,
@@ -30,6 +31,10 @@ class ScheduleViewModel(
             username = username,
             csrfToken = csrfToken
         )
+    }
+
+    private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Log.e("ScheduleViewModel", "Coroutine exception: ", throwable)
     }
 
     // Кэш всех недель
@@ -55,7 +60,7 @@ class ScheduleViewModel(
     fun ensureWeekLoaded(week: Int) {
         if (_weeks.value.containsKey(week) || _loadingWeeks.value.contains(week)) return
         _loadingWeeks.value = _loadingWeeks.value + week
-        viewModelScope.launch {
+        viewModelScope.launch(coroutineExceptionHandler) {
             try {
                 val local = scheduleRepository.getScheduleFromDb(week)
                 if (local != null) {
@@ -136,14 +141,14 @@ class ScheduleViewModel(
         if (!weeks.value.containsKey(left)) ensureWeekLoaded(left)
         if (!weeks.value.containsKey(right)) ensureWeekLoaded(right)
         // Очистка старых недель, оставляем диапазон [centerWeek-2, ..., centerWeek+2]
-        viewModelScope.launch {
+        viewModelScope.launch(coroutineExceptionHandler) {
             scheduleRepository.cleanupOldWeeks(listOf(centerWeek - 2, left, centerWeek, right, centerWeek + 2))
         }
     }
 
     // Предзагрузка недель из БД для мгновенного отображения
     fun preloadWeeksFromDb(centerWeek: Int) {
-        viewModelScope.launch {
+        viewModelScope.launch(coroutineExceptionHandler) {
             val weeksToLoad = (centerWeek - 2)..(centerWeek + 2)
             val loaded = weeksToLoad.associateWith { scheduleRepository.getScheduleFromDb(it) }
             _weeks.value = _weeks.value + loaded.filterValues { it != null }
