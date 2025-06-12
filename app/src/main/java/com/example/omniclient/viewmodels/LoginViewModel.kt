@@ -207,6 +207,14 @@ class LoginViewModel(
 
                             Log.d("Dev: Login", "Academy schedule: ${academySchedule}")
                             Log.d("Dev: Login", "College schedule: ${collegeSchedule}")
+
+                            if (academySchedule == null && collegeSchedule == null){
+                                _responseText.value = "Ошибка входа: Академия: ${academyResp.code()} ${academyResp.message()}, Колледж: ${collegeResp.code()} ${collegeResp.message()}"
+                                _autoLoginInProgress.value = false
+                                onAutoLoginFailed?.invoke()
+                                break
+                            }
+
                             val merged = when {
                                 academySchedule != null && collegeSchedule != null -> com.example.omniclient.ui.schedule.mergeSchedules(academySchedule, collegeSchedule)
                                 academySchedule != null -> academySchedule

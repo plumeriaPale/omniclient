@@ -56,6 +56,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.ui.tooling.preview.Preview
+import kotlinx.coroutines.launch
 
 // --- Data classes ---
 data class PresentsResponse(
@@ -63,14 +64,17 @@ data class PresentsResponse(
     val students: List<PresentStudent>
 )
 data class PresentStudent(
+    val id_vizit: String,
     val id_stud: String,
     val fio_stud: String,
     val photo_pas: String?,
+    val id_rasp: String,
     val was: Int?,
     val mark2: Int?,
     val mark4: Int?,
     val prize: Int?,
-    val group: String? = null
+    val group: String? = null,
+    val theme: String? = null
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,6 +89,7 @@ fun AttendanceScreen(
     var students by remember { mutableStateOf<List<PresentStudent>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorText by remember { mutableStateOf<String?>(null) }
+    var lessonInitTheme by remember { mutableStateOf("") }
 
     val attendanceRepository = remember {
         AttendanceRepository(
@@ -98,15 +103,18 @@ fun AttendanceScreen(
         errorText = null
         try {
             val division = divisionId
-            Log.d("Dev: Attendance", "divisionId: ${divisionId}")
+            Log.d("Dev: Attendance", "divisionId: \${divisionId}")
             val studentsList = attendanceRepository.getPresents(division, mapOf("lenta" to lenta.toInt()))
             students = studentsList ?: emptyList()
+            if (studentsList != null) {
+                lessonInitTheme = if (studentsList.firstOrNull()?.theme == null) "" else studentsList.firstOrNull()?.theme.toString()
+            }
             if (studentsList == null) {
                 errorText = "Ошибка загрузки присутствующих"
             }
         } catch (e: Exception) {
-            errorText = "Ошибка: ${e.message}"
-            Log.d("Dev: Attendance", "Ошибка: ${e.message}")
+            errorText = "Ошибка: \${e.message}"
+            Log.d("Dev: Attendance", "Ошибка: \${e.message}")
         }
         isLoading = false
     }
@@ -115,16 +123,11 @@ fun AttendanceScreen(
         topBar = {
             TopAppBarComponent(
                 title = "Присутствующие",
-                onLogoutClick = {
-                    loginViewModel.logout()
-                    navController.navigate("login") {
-                        popUpTo("login") { inclusive = true }
-                    }
-                },
                 navController = navController
             )
         }
     ) { paddingValues ->
+        val coroutineScope = rememberCoroutineScope()
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -135,7 +138,7 @@ fun AttendanceScreen(
                 errorText != null -> Text(errorText!!, color = Color.Red, modifier = Modifier.align(Alignment.Center))
                 else -> Column(Modifier.fillMaxSize().padding(8.dp)) {
                     // --- Тема урока и кнопки ---
-                    var lessonTheme by remember { mutableStateOf("") }
+                    var lessonTheme by remember { mutableStateOf(lessonInitTheme) }
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -160,7 +163,28 @@ fun AttendanceScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Button(
-                                onClick = { /* TODO: Сохранить тему */ },
+                                onClick = {
+                                    // Сохранить тему
+                                    val themeToSave = lessonTheme
+                                    val lentaInt = lenta.toIntOrNull() ?: 0
+                                    val date = java.time.LocalDate.now().toString()
+                                    val body = mapOf(
+                                        "date" to date,
+                                        "lenta" to lentaInt,
+                                        "theme" to themeToSave,
+                                        "schedule" to students.firstOrNull()?.id_rasp,
+                                        "scheduleType" to "lesson",
+                                        "teach_type" to 0,
+                                    )
+                                    coroutineScope.launch {
+                                        Log.d("Dev: AttendanceSetTheme", "divisionId: ${divisionId} body: ${body}")
+                                        val success = attendanceRepository.setTheme(divisionId, body)
+                                        withContext(Dispatchers.Main) {
+                                            if (!success)
+                                                Toast.makeText(context, "Ошибка сохранения темы", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDB173F)),
                                 shape = RoundedCornerShape(0.dp),
                                 modifier = Modifier
@@ -190,7 +214,14 @@ fun AttendanceScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         itemsIndexed(students) { idx, stud ->
-                            StudentCard(stud, idx + 1)
+                            StudentCard(
+                                stud = stud,
+                                number = idx + 1,
+                                divisionId = divisionId,
+                                onWasChange = { newWas ->
+                                    students = students.toMutableList().also { it[idx] = it[idx].copy(was = newWas) }
+                                }
+                            )
                         }
                     }
                 }
@@ -201,7 +232,12 @@ fun AttendanceScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StudentCard(stud: PresentStudent, number: Int) {
+fun StudentCard(
+    stud: PresentStudent,
+    number: Int,
+    divisionId: Int,
+    onWasChange: (Int) -> Unit
+) {
     val context = LocalContext.current
     var mark2Expanded by remember { mutableStateOf(false) }
     var mark4Expanded by remember { mutableStateOf(false) }
@@ -209,6 +245,12 @@ fun StudentCard(stud: PresentStudent, number: Int) {
     var mark4 by remember { mutableStateOf(stud.mark4) }
     var prize by remember { mutableStateOf(stud.prize ?: 0) }
     var was by remember { mutableStateOf(stud.was ?: -1) } // -1 = не выбран
+    val attendanceRepository = remember {
+        AttendanceRepository(
+            academyClient = AcademyClient,
+            collegeClient = CollegeClient
+        )
+    }
 
     LaunchedEffect(Unit) {
         Log.d("Dev: Attendance", "Студент: $stud")
@@ -223,6 +265,7 @@ fun StudentCard(stud: PresentStudent, number: Int) {
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
+        val coroutineScope = rememberCoroutineScope()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -268,8 +311,32 @@ fun StudentCard(stud: PresentStudent, number: Int) {
                 RadioButton(
                     selected = was == 1,
                     onClick = {
+                        val now = java.util.Calendar.getInstance()
+                        val key = "${now.get(java.util.Calendar.SECOND)}${now.get(java.util.Calendar.MILLISECOND)}"
+
                         was = 1
-                        Toast.makeText(context, "Присутствовал", Toast.LENGTH_SHORT).show()
+                        onWasChange(1)
+                        val body: Map<String, Any?> = mapOf(
+                            "visits" to mapOf(
+                                key to mapOf(
+                                    "was" to was,
+                                    "vizit" to stud.id_vizit,
+                                    "id_stud" to stud.id_stud,
+                                    "id_schedule" to stud.id_rasp,
+                                    "primary_teach" to "0",
+                                    "theme" to stud.theme
+                                )
+                            ),
+                            "schedule" to stud.id_rasp
+                        )
+                        coroutineScope.launch {
+                            val success = attendanceRepository.setWas(divisionId, body)
+                            Log.d("Dev: AttendanceStatus", "divisionId: ${divisionId}, body: ${body}")
+                            withContext(Dispatchers.Main) {
+                                if (!success)
+                                    Toast.makeText(context, "Ошибка сохранения посещения", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     },
                     colors = RadioButtonDefaults.colors(
                         selectedColor = Color(0xFF4CAF50),
@@ -282,8 +349,32 @@ fun StudentCard(stud: PresentStudent, number: Int) {
                 RadioButton(
                     selected = was == 2,
                     onClick = {
+                        val now = java.util.Calendar.getInstance()
+                        val key = "${now.get(java.util.Calendar.SECOND)}${now.get(java.util.Calendar.MILLISECOND)}"
+
                         was = 2
-                        Toast.makeText(context, "Опоздал", Toast.LENGTH_SHORT).show()
+                        onWasChange(2)
+                        val body: Map<String, Any?> = mapOf(
+                            "visits" to mapOf(
+                                key to mapOf(
+                                    "was" to was,
+                                    "vizit" to stud.id_vizit,
+                                    "id_stud" to stud.id_stud,
+                                    "id_schedule" to stud.id_rasp,
+                                    "primary_teach" to "0",
+                                    "theme" to stud.theme
+                                )
+                            ),
+                            "schedule" to stud.id_rasp
+                        )
+                        coroutineScope.launch {
+                            val success = attendanceRepository.setWas(divisionId, body)
+                            Log.d("Dev: AttendanceStatus", "divisionId: ${divisionId}, body: ${body}, success: ${success}")
+                            withContext(Dispatchers.Main) {
+                                if (!success)
+                                    Toast.makeText(context, "Ошибка сохранения посещения", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     },
                     colors = RadioButtonDefaults.colors(
                         selectedColor = Color(0xFFFFC107),
@@ -296,8 +387,31 @@ fun StudentCard(stud: PresentStudent, number: Int) {
                 RadioButton(
                     selected = was == 0,
                     onClick = {
+                        val now = java.util.Calendar.getInstance()
+                        val key = "${now.get(java.util.Calendar.SECOND)}${now.get(java.util.Calendar.MILLISECOND)}"
+
                         was = 0
-                        Toast.makeText(context, "Отсутствовал", Toast.LENGTH_SHORT).show()
+                        onWasChange(0)
+                        val body: Map<String, Any?> = mapOf(
+                            "visits" to mapOf(
+                                key to mapOf(
+                                    "was" to was,
+                                    "vizit" to stud.id_vizit,
+                                    "id_stud" to stud.id_stud,
+                                    "id_schedule" to stud.id_rasp,
+                                    "primary_teach" to "0",
+                                    "theme" to stud.theme
+                                )
+                            ),
+                            "schedule" to stud.id_rasp
+                        )
+                        coroutineScope.launch {
+                            val success = attendanceRepository.setWas(divisionId, body)
+                            withContext(Dispatchers.Main) {
+                                if (!success)
+                                    Toast.makeText(context, "Ошибка сохранения посещения", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     },
                     colors = RadioButtonDefaults.colors(
                         selectedColor = Color(0xFFF44336),
@@ -337,7 +451,27 @@ fun StudentCard(stud: PresentStudent, number: Int) {
                                     onClick = {
                                         mark2 = value
                                         mark2Expanded = false
-                                        Toast.makeText(context, "Оценка КР: $value", Toast.LENGTH_SHORT).show()
+
+                                        val now = java.util.Calendar.getInstance()
+                                        val key = "${now.get(java.util.Calendar.SECOND)}${now.get(java.util.Calendar.MILLISECOND)}"
+
+                                        val body: Map<String, Any?> = mapOf(
+                                            "marks" to mapOf(
+                                                key to mapOf(
+                                                    "type" to 2,
+                                                    "mark" to value,
+                                                    "vizit" to stud.id_vizit,
+                                                )
+                                            ),
+                                            "schedule" to stud.id_rasp
+                                        )
+                                        coroutineScope.launch {
+                                            val success = attendanceRepository.setMark(divisionId, body)
+                                            withContext(Dispatchers.Main) {
+                                                if (!success)
+                                                    Toast.makeText(context, "Ошибка сохранения оценки КР", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
                                     }
                                 )
                             }
@@ -368,7 +502,27 @@ fun StudentCard(stud: PresentStudent, number: Int) {
                                     onClick = {
                                         mark4 = value
                                         mark4Expanded = false
-                                        Toast.makeText(context, "Оценка класс: $value", Toast.LENGTH_SHORT).show()
+
+                                        val now = java.util.Calendar.getInstance()
+                                        val key = "${now.get(java.util.Calendar.SECOND)}${now.get(java.util.Calendar.MILLISECOND)}"
+
+                                        val body: Map<String, Any?> = mapOf(
+                                            "marks" to mapOf(
+                                                key to mapOf(
+                                                    "type" to 4,
+                                                    "mark" to value,
+                                                    "vizit" to stud.id_vizit,
+                                                )
+                                            ),
+                                            "schedule" to stud.id_rasp
+                                        )
+                                        coroutineScope.launch {
+                                            val success = attendanceRepository.setMark(divisionId, body)
+                                            withContext(Dispatchers.Main) {
+                                                if (!success)
+                                                    Toast.makeText(context, "Ошибка сохранения оценки", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
                                     }
                                 )
                             }

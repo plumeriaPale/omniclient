@@ -35,8 +35,14 @@ import androidx.compose.material3.TextField
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
@@ -73,143 +79,196 @@ fun NavigationDrawer(
         gesturesEnabled = enableGesture,
         drawerContent = {
             ModalDrawerSheet(drawerContainerColor = Color(0xFFFEF8F8)){
-                // MINI PROFILE
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 24.dp, bottom = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        val photoUrl = miniProfile?.teach_info?.photo_pas
-                        val isSvg = photoUrl?.contains("avatarka.svg") == true || photoUrl?.endsWith(".svg") == true
-                        if (!photoUrl.isNullOrBlank() && !isSvg) {
-                            AsyncImage(
-                                model = photoUrl,
-                                contentDescription = "Avatar",
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(CircleShape)
-                            )
-                        } else if (!photoUrl.isNullOrBlank() && isSvg) {
-                            // SVG-заглушка: Box с инициалом
-                            Box(
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFE0E0E0)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = miniProfile?.teach_info?.fio_teach?.firstOrNull()?.toString() ?: "?",
-                                    fontSize = 28.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.DarkGray,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFE0E0E0)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = miniProfile?.teach_info?.fio_teach?.firstOrNull()?.toString() ?: "?",
-                                    fontSize = 28.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.DarkGray,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = miniProfile?.teach_info?.fio_teach ?: "",
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 16.sp,
-                            color = Color.Black,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-                if (users.isNotEmpty() && onUserSelected != null && onAddUser != null) {
-                    var expanded by remember { mutableStateOf(false) }
-                    val filteredUsers = users.filter { it.username != currentUsername }
-                    ExposedDropdownMenuBox(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                        expanded = expanded,
-                        onExpandedChange = { expanded = !expanded }
+                Column(modifier = Modifier.fillMaxHeight()) {
+                    // MINI PROFILE
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 24.dp, bottom = 8.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        TextField(
-                            value = currentUsername,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Пользователь") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                            modifier = Modifier.menuAnchor()
-                        )
-                        ExposedDropdownMenu(
-                            modifier = Modifier.background(Color(0xFFFEF8F8)),
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            val photoUrl = miniProfile?.teach_info?.photo_pas
+                            val isSvg = photoUrl?.contains("avatarka.svg") == true || photoUrl?.endsWith(".svg") == true
+                            if (!photoUrl.isNullOrBlank() && !isSvg) {
+                                AsyncImage(
+                                    model = photoUrl,
+                                    contentDescription = "Avatar",
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(CircleShape)
+                                )
+                            } else if (!photoUrl.isNullOrBlank() && isSvg) {
+                                // SVG-заглушка: Box с инициалом
+                                Box(
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFE0E0E0)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = miniProfile?.teach_info?.fio_teach?.firstOrNull()?.toString() ?: "?",
+                                        fontSize = 28.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.DarkGray,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFE0E0E0)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = miniProfile?.teach_info?.fio_teach?.firstOrNull()?.toString() ?: "?",
+                                        fontSize = 28.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.DarkGray,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = miniProfile?.teach_info?.fio_teach ?: "",
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 16.sp,
+                                color = Color.Black,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                    if (users.isNotEmpty() && onUserSelected != null && onAddUser != null) {
+                        var expanded by remember { mutableStateOf(false) }
+                        val filteredUsers = users.filter { it.username != currentUsername }
+                        ExposedDropdownMenuBox(
+                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
                             expanded = expanded,
-                            onDismissRequest = { expanded = false }
+                            onExpandedChange = { expanded = !expanded }
                         ) {
-                            filteredUsers.forEach { user ->
+                            TextField(
+                                value = currentUsername,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Пользователь") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                                modifier = Modifier.menuAnchor()
+                            )
+                            ExposedDropdownMenu(
+                                modifier = Modifier.background(Color(0xFFFEF8F8)),
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }
+                            ) {
+                                filteredUsers.forEach { user ->
+                                    DropdownMenuItem(
+                                        text = { Text(user.username) },
+                                        onClick = {
+                                            expanded = false
+                                            onUserSelected(user)
+                                        }
+                                    )
+                                }
                                 DropdownMenuItem(
-                                    text = { Text(user.username) },
+                                    text = { Text("Добавить пользователя") },
                                     onClick = {
                                         expanded = false
-                                        onUserSelected(user)
-                                    }
+                                        onAddUser()
+                                    },
                                 )
                             }
-                            DropdownMenuItem(
-                                text = { Text("Добавить пользователя") },
-                                onClick = {
-                                    expanded = false
-                                    onAddUser()
-                                },
-                            )
                         }
                     }
+                    Column(modifier = Modifier.weight(1f)) {
+                        NavigationDrawerItem(
+                            icon = { Icon(Icons.Default.DateRange, contentDescription = null, tint = if (currentRoute == "schedule") Color(0xFFDB173F) else Color.Black) },
+                            label = { Text("Расписание") },
+                            selected = currentRoute == "schedule",
+                            onClick = {
+                                navController.navigate("schedule") {
+                                    popUpTo("schedule") { inclusive = true }
+                                }
+                                scope.launch { drawerState.close() }
+                            },
+                            colors = NavigationDrawerItemDefaults.colors(
+                                selectedContainerColor = Color(0x00FFFFFF),
+                                unselectedContainerColor = Color(0x00FFFFFF),
+                            ),
+                            shape = RectangleShape
+                        )
+                        NavigationDrawerItem(
+                            icon = { Icon(Icons.Default.Home, contentDescription = null, tint = if (currentRoute == "homework") Color(0xFFDB173F) else Color.Black) },
+                            label = { Text("ДЗ") },
+                            selected = currentRoute == "homework",
+                            onClick = {
+                                navController.navigate("homework") {
+                                    popUpTo("schedule") { inclusive = true }
+                                }
+                                scope.launch { drawerState.close() }
+                            },
+                            colors = NavigationDrawerItemDefaults.colors(
+                                selectedContainerColor = Color(0x00FFFFFF),
+                                unselectedContainerColor = Color(0x00FFFFFF),
+                            ),
+                            shape = RectangleShape
+                        )
+                        NavigationDrawerItem(
+                            icon = { Icon(Icons.Default.Settings, contentDescription = null, tint = if (currentRoute == "homework") Color(0xFFDB173F) else Color.Black) },
+                            label = { Text("Настройки") },
+                            selected = currentRoute == "homework",
+                            onClick = {
+                                navController.navigate("homework") {
+                                    popUpTo("schedule") { inclusive = true }
+                                }
+                                scope.launch { drawerState.close() }
+                            },
+                            colors = NavigationDrawerItemDefaults.colors(
+                                selectedContainerColor = Color(0x00FFFFFF),
+                                unselectedContainerColor = Color(0x00FFFFFF),
+                            ),
+                            shape = RectangleShape
+                        )
+                        NavigationDrawerItem(
+                            icon = { Icon(Icons.Outlined.Person, contentDescription = null, tint = if (currentRoute == "homework") Color(0xFFDB173F) else Color.Black) },
+                            label = { Text("Профиль") },
+                            selected = currentRoute == "homework",
+                            onClick = {
+
+                                scope.launch { drawerState.close() }
+                            },
+                            colors = NavigationDrawerItemDefaults.colors(
+                                selectedContainerColor = Color(0x00FFFFFF),
+                                unselectedContainerColor = Color(0x00FFFFFF),
+                            ),
+                            shape = RectangleShape
+                        )
+                    }
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = if (currentRoute == "homework") Color(0xFFDB173F) else Color.Black) },
+                        label = { Text("Выйти") },
+                        selected = currentRoute == "homework",
+                        onClick = {
+                            loginViewModel.logout()
+                            navController.navigate("login") {
+                                popUpTo("login") { inclusive = true }
+                            }
+                            scope.launch { drawerState.close() }
+                        },
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = Color(0x00FFFFFF),
+                            unselectedContainerColor = Color(0x00FFFFFF),
+                        ),
+                        shape = RectangleShape,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
                 }
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.DateRange, contentDescription = null, tint = if (currentRoute == "schedule") Color(0xFFDB173F) else Color.Black) },
-                    label = { Text("Расписание") },
-                    selected = currentRoute == "schedule",
-                    onClick = {
-                        navController.navigate("schedule") {
-                            popUpTo("schedule") { inclusive = true }
-                        }
-                        scope.launch { drawerState.close() }
-                    },
-                    colors = NavigationDrawerItemDefaults.colors(
-                        selectedContainerColor = Color(0x00FFFFFF),
-                        unselectedContainerColor = Color(0x00FFFFFF),
-                    ),
-                    shape = RectangleShape
-                )
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.Home, contentDescription = null, tint = if (currentRoute == "homework") Color(0xFFDB173F) else Color.Black) },
-                    label = { Text("ДЗ") },
-                    selected = currentRoute == "homework",
-                    onClick = {
-                        navController.navigate("homework") {
-                            popUpTo("schedule") { inclusive = true }
-                        }
-                        scope.launch { drawerState.close() }
-                    },
-                    colors = NavigationDrawerItemDefaults.colors(
-                        selectedContainerColor = Color(0x00FFFFFF),
-                        unselectedContainerColor = Color(0x00FFFFFF),
-                    ),
-                    shape = RectangleShape
-                )
             }
         }
     ) {
         content()
     }
 }
+//onLogoutClick

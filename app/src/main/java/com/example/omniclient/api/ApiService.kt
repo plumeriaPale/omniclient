@@ -68,12 +68,44 @@ interface ApiService {
         @Body body: Map<String, @JvmSuppressWildcards Any>
     ): retrofit2.Response<okhttp3.ResponseBody>
 
+    @POST("presents/set-theme")
+    @Headers(
+        "Content-Type: application/json;charset=UTF-8",
+        "Accept: application/json",
+        "X-Requested-With: XMLHttpRequest"
+    )
+    suspend fun setTheme(
+        @Body body: Map<String, @JvmSuppressWildcards Any?>
+    ): retrofit2.Response<okhttp3.ResponseBody>
+
+    @POST("presents/set-was")
+    @Headers(
+        "Content-Type: application/json;charset=UTF-8",
+        "Accept: application/json",
+        "X-Requested-With: XMLHttpRequest"
+    )
+    suspend fun setWas(
+        @Body body: Map<String, @JvmSuppressWildcards Any?>
+    ): retrofit2.Response<okhttp3.ResponseBody>
+
+    @POST("presents/set-mark")
+    @Headers(
+        "Content-Type: application/json;charset=UTF-8",
+        "Accept: application/json",
+        "X-Requested-With: XMLHttpRequest"
+    )
+    suspend fun setMark(
+        @Body body: Map<String, @JvmSuppressWildcards Any?>
+    ): retrofit2.Response<okhttp3.ResponseBody>
+
     @POST("profile/get-profile")
     @Headers(
         "Content-Type: application/json;charset=UTF-8",
         "Accept: application/json",
         "X-Requested-With: XMLHttpRequest"
     )
+
+
     suspend fun getProfile(): Response<ProfileResponse>
 }
 

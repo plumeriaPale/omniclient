@@ -147,12 +147,6 @@ fun HomeworkScreen(
         topBar = {
             TopAppBarComponent(
                 title = "Домашние задания",
-                onLogoutClick = {
-                    loginViewModel.logout()
-                    navController.navigate("login") {
-                        popUpTo("login") { inclusive = true }
-                    }
-                },
                 navController = navController,
                 onMenuClick = openDrawer
             )

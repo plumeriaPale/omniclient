@@ -138,12 +138,6 @@ fun ScheduleScreen(
         topBar = {
             TopAppBarComponent(
                 title = "Расписание",
-                onLogoutClick = {
-                    loginViewModel.logout()
-                    navController.navigate("login") {
-                        popUpTo("login") { inclusive = true }
-                    }
-                },
                 navController = navController,
                 onMenuClick = openDrawer
             )

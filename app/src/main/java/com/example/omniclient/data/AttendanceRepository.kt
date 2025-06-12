@@ -24,4 +24,34 @@ class AttendanceRepository(
         }
         return null
     }
-} 
+
+    suspend fun setTheme(divisionId: Int, body: Map<String, Any?>): Boolean {
+        val client = when (divisionId) {
+            74 -> academyClient
+            458 -> collegeClient
+            else -> return false
+        }
+        val response = client.setTheme(body)
+        return response.isSuccessful
+    }
+
+    suspend fun setWas(divisionId: Int, body: Map<String, Any?>): Boolean {
+        val client = when (divisionId) {
+            74 -> academyClient
+            458 -> collegeClient
+            else -> return false
+        }
+        val response = client.setWas(body)
+        return response.isSuccessful
+    }
+
+    suspend fun setMark(divisionId: Int, body: Map<String, Any?>): Boolean {
+        val client = when (divisionId) {
+            74 -> academyClient
+            458 -> collegeClient
+            else -> return false
+        }
+        val response = client.setMark(body)
+        return response.isSuccessful
+    }
+}

@@ -46,6 +46,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import com.example.omniclient.components.NavigationDrawer
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.example.omniclient.api.CollegeClient
 import com.example.omniclient.ui.attendance.AttendanceScreen
 import com.example.omniclient.ui.homework.HomeworkScreen
@@ -92,6 +94,8 @@ fun MyApp() {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
+    var didNavigateToSchedule by remember { mutableStateOf(false) }
+
     val username by loginViewModel.username.collectAsState()
     val password by loginViewModel.password.collectAsState()
     val isLoading by loginViewModel.isLoading.collectAsState()
@@ -118,6 +122,7 @@ fun MyApp() {
             loginViewModel.autoLoginIfPossible(
                 onAutoLoginSuccess = {
                     Log.d("Dev:Login", "tryAutoLogin success")
+                    didNavigateToSchedule = false
                     navController.navigate("schedule") {
                         popUpTo("login") { inclusive = true }
                     }
@@ -135,10 +140,11 @@ fun MyApp() {
 
     LaunchedEffect(schedule) {
         val currentRoute = navBackStackEntry?.destination?.route
-        if (schedule != null && currentRoute == "login") {
+        if (schedule != null && currentRoute == "login" && !didNavigateToSchedule) {
             navController.navigate("schedule") {
                 popUpTo("login") { inclusive = true }
             }
+            didNavigateToSchedule = true
         }
     }
 
@@ -204,6 +210,7 @@ fun MyApp() {
                         isLoading = isLoading,
                         onLogin = {
                             loginViewModel.login {
+                                didNavigateToSchedule = false
                                 navController.navigate("schedule")
                             }
                         }
