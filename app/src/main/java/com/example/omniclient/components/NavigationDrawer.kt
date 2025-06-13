@@ -216,12 +216,12 @@ fun NavigationDrawer(
                             shape = RectangleShape
                         )
                         NavigationDrawerItem(
-                            icon = { Icon(Icons.Default.Settings, contentDescription = null, tint = if (currentRoute == "homework") Color(0xFFDB173F) else Color.Black) },
+                            icon = { Icon(Icons.Default.Settings, contentDescription = null, tint = if (currentRoute == "settings") Color(0xFFDB173F) else Color.Black) },
                             label = { Text("Настройки") },
-                            selected = currentRoute == "homework",
+                            selected = currentRoute == "settings",
                             onClick = {
-                                navController.navigate("homework") {
-                                    popUpTo("schedule") { inclusive = true }
+                                navController.navigate("settings") {
+                                    popUpTo("settings") { inclusive = true }
                                 }
                                 scope.launch { drawerState.close() }
                             },
@@ -232,7 +232,7 @@ fun NavigationDrawer(
                             shape = RectangleShape
                         )
                         NavigationDrawerItem(
-                            icon = { Icon(Icons.Outlined.Person, contentDescription = null, tint = if (currentRoute == "homework") Color(0xFFDB173F) else Color.Black) },
+                            icon = { Icon(Icons.Outlined.Person, contentDescription = null, tint = if (currentRoute == "profile") Color(0xFFDB173F) else Color.Black) },
                             label = { Text("Профиль") },
                             selected = currentRoute == "homework",
                             onClick = {
@@ -247,7 +247,7 @@ fun NavigationDrawer(
                         )
                     }
                     NavigationDrawerItem(
-                        icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = if (currentRoute == "homework") Color(0xFFDB173F) else Color.Black) },
+                        icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = Color.Black) },
                         label = { Text("Выйти") },
                         selected = currentRoute == "homework",
                         onClick = {

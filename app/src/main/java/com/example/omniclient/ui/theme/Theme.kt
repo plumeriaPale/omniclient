@@ -20,6 +20,7 @@ private val DarkColorScheme = darkColorScheme(
     surface = Color(0xFFFFF8F8),
 )
 
+
 private val LightColorScheme = lightColorScheme(
     primary = Color(0xFFDB173F),
     secondary = Color(0xFFDB173F),
@@ -27,12 +28,17 @@ private val LightColorScheme = lightColorScheme(
     background = Color(0xFFFFF8F8),
     surface = Color(0xFFFFF8F8),
     surfaceVariant = Color(0xFFFFF8F8),
+    secondaryContainer = Color(0xFFFFF8F8),
+    primaryContainer = Color(0xFFFFF8F8),
+    surfaceContainer = Color(0xFFFFF8F8),
 )
+
+
 
 @Composable
 fun OMNIClientTheme(
     darkTheme: Boolean = false,
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     /*
@@ -44,11 +50,11 @@ fun OMNIClientTheme(
 
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
-    }*/
-
+    }
+    */
     MaterialTheme(
         colorScheme = LightColorScheme,
         typography = Typography,
-        content = content
+        content = content,
     )
 }

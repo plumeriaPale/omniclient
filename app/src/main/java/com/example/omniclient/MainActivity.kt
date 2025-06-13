@@ -49,6 +49,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.example.omniclient.api.CollegeClient
+import com.example.omniclient.data.db.DatabaseProvider
+import com.example.omniclient.screens.SettingsScreen
 import com.example.omniclient.ui.attendance.AttendanceScreen
 import com.example.omniclient.ui.homework.HomeworkScreen
 
@@ -59,20 +61,25 @@ class MainActivity : ComponentActivity() {
 
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             Log.e("GlobalException", "Uncaught exception in thread "+thread.name, throwable)
-            // Можно добавить показ тоста или отправку логов
-        }
+Toast.makeText(this.application, "${throwable}", Toast.LENGTH_SHORT)        }
 
         setContent {
             val systemUiController = rememberSystemUiController()
+
             enableEdgeToEdge()
             SideEffect {
+                systemUiController.setSystemBarsColor(
+                    color = Color.Transparent,
+                    isNavigationBarContrastEnforced = false
+                )
                 systemUiController.setStatusBarColor(
                     color = Color.Transparent,
                     darkIcons = true
                 )
                 systemUiController.setNavigationBarColor(
-                    color = Color(0xFFFFF8F8),
-                    darkIcons = true
+                    color = Color.Transparent,
+                    darkIcons = true,
+                    navigationBarContrastEnforced = false
                 )
             }
 
@@ -123,9 +130,9 @@ fun MyApp() {
                 onAutoLoginSuccess = {
                     Log.d("Dev:Login", "tryAutoLogin success")
                     didNavigateToSchedule = false
-                    navController.navigate("schedule") {
-                        popUpTo("login") { inclusive = true }
-                    }
+                    //navController.navigate("schedule") {
+                        //popUpTo("login") { inclusive = true }
+                    //}
                 },
                 onAutoLoginFailed = {
                     Log.d("Dev:Login", "tryAutoLogin failed")
@@ -250,6 +257,13 @@ fun MyApp() {
                     navController = navController,
                     loginViewModel = loginViewModel,
                     openDrawer = { scope.launch { drawerState.open() } }
+                )
+            }
+            composable("settings") {
+                SettingsScreen(
+                    outerNavController = navController,
+                    openDrawer = { scope.launch { drawerState.open() } },
+                    userDao = DatabaseProvider.getDatabase(context).userDao()
                 )
             }
         }
