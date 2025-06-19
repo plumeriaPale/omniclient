@@ -455,42 +455,80 @@ fun StudentCard(
                                     .verticalScroll(rememberScrollState())
                                     .width(IntrinsicSize.Min)
                             ) {
-                                (1..12).forEach { value ->
-                                    DropdownMenuItem(
-                                        modifier = Modifier.width(IntrinsicSize.Max),
-                                        text = {
-                                            Text(
-                                                text = value.toString(),
-                                                modifier = Modifier.padding(horizontal = 16.dp)
-                                            )
-                                        },
-                                        onClick = {
-                                            mark2 = value
-                                            mark2Expanded = false
+                                if (divisionId == 74)
+                                    (1..12).forEach { value ->
+                                        DropdownMenuItem(
+                                            modifier = Modifier.width(IntrinsicSize.Max),
+                                            text = {
+                                                Text(
+                                                    text = value.toString(),
+                                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                                )
+                                            },
+                                            onClick = {
+                                                mark2 = value
+                                                mark2Expanded = false
 
-                                            val now = java.util.Calendar.getInstance()
-                                            val key = "${now.get(java.util.Calendar.SECOND)}${now.get(java.util.Calendar.MILLISECOND)}"
+                                                val now = java.util.Calendar.getInstance()
+                                                val key = "${now.get(java.util.Calendar.SECOND)}${now.get(java.util.Calendar.MILLISECOND)}"
 
-                                            val body: Map<String, Any?> = mapOf(
-                                                "marks" to mapOf(
-                                                    key to mapOf(
-                                                        "type" to 2,
-                                                        "mark" to value,
-                                                        "vizit" to stud.id_vizit,
-                                                    )
-                                                ),
-                                                "schedule" to stud.id_rasp
-                                            )
-                                            coroutineScope.launch {
-                                                val success = attendanceRepository.setMark(divisionId, body)
-                                                withContext(Dispatchers.Main) {
-                                                    if (!success)
-                                                        Toast.makeText(context, "Ошибка сохранения оценки КР", Toast.LENGTH_SHORT).show()
+                                                val body: Map<String, Any?> = mapOf(
+                                                    "marks" to mapOf(
+                                                        key to mapOf(
+                                                            "type" to 2,
+                                                            "mark" to value,
+                                                            "vizit" to stud.id_vizit,
+                                                        )
+                                                    ),
+                                                    "schedule" to stud.id_rasp
+                                                )
+                                                coroutineScope.launch {
+                                                    val success = attendanceRepository.setMark(divisionId, body)
+                                                    withContext(Dispatchers.Main) {
+                                                        if (!success)
+                                                            Toast.makeText(context, "Ошибка сохранения оценки КР", Toast.LENGTH_SHORT).show()
+                                                    }
                                                 }
                                             }
-                                        }
-                                    )
-                                }
+                                        )
+                                    }
+                                if (divisionId == 458)
+                                    (1..5).forEach { value ->
+                                        DropdownMenuItem(
+                                            modifier = Modifier.width(IntrinsicSize.Max),
+                                            text = {
+                                                Text(
+                                                    text = value.toString(),
+                                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                                )
+                                            },
+                                            onClick = {
+                                                mark2 = value
+                                                mark2Expanded = false
+
+                                                val now = java.util.Calendar.getInstance()
+                                                val key = "${now.get(java.util.Calendar.SECOND)}${now.get(java.util.Calendar.MILLISECOND)}"
+
+                                                val body: Map<String, Any?> = mapOf(
+                                                    "marks" to mapOf(
+                                                        key to mapOf(
+                                                            "type" to 2,
+                                                            "mark" to value,
+                                                            "vizit" to stud.id_vizit,
+                                                        )
+                                                    ),
+                                                    "schedule" to stud.id_rasp
+                                                )
+                                                coroutineScope.launch {
+                                                    val success = attendanceRepository.setMark(divisionId, body)
+                                                    withContext(Dispatchers.Main) {
+                                                        if (!success)
+                                                            Toast.makeText(context, "Ошибка сохранения оценки КР", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
                             }
                         }
                     }
@@ -513,36 +551,70 @@ fun StudentCard(
                             expanded = mark4Expanded,
                             onDismissRequest = { mark4Expanded = false }
                         ) {
-                            (1..12).forEach { value ->
-                                DropdownMenuItem(
-                                    text = { Text(value.toString()) },
-                                    onClick = {
-                                        mark4 = value
-                                        mark4Expanded = false
+                            if (divisionId == 74)
+                                (1..12).forEach { value ->
+                                    DropdownMenuItem(
+                                        modifier = Modifier.background(Color.White),
+                                        text = { Text(value.toString()) },
+                                        onClick = {
+                                            mark4 = value
+                                            mark4Expanded = false
 
-                                        val now = java.util.Calendar.getInstance()
-                                        val key = "${now.get(java.util.Calendar.SECOND)}${now.get(java.util.Calendar.MILLISECOND)}"
+                                            val now = java.util.Calendar.getInstance()
+                                            val key = "${now.get(java.util.Calendar.SECOND)}${now.get(java.util.Calendar.MILLISECOND)}"
 
-                                        val body: Map<String, Any?> = mapOf(
-                                            "marks" to mapOf(
-                                                key to mapOf(
-                                                    "type" to 4,
-                                                    "mark" to value,
-                                                    "vizit" to stud.id_vizit,
-                                                )
-                                            ),
-                                            "schedule" to stud.id_rasp
-                                        )
-                                        coroutineScope.launch {
-                                            val success = attendanceRepository.setMark(divisionId, body)
-                                            withContext(Dispatchers.Main) {
-                                                if (!success)
-                                                    Toast.makeText(context, "Ошибка сохранения оценки", Toast.LENGTH_SHORT).show()
+                                            val body: Map<String, Any?> = mapOf(
+                                                "marks" to mapOf(
+                                                    key to mapOf(
+                                                        "type" to 4,
+                                                        "mark" to value,
+                                                        "vizit" to stud.id_vizit,
+                                                    )
+                                                ),
+                                                "schedule" to stud.id_rasp
+                                            )
+                                            coroutineScope.launch {
+                                                val success = attendanceRepository.setMark(divisionId, body)
+                                                withContext(Dispatchers.Main) {
+                                                    if (!success)
+                                                        Toast.makeText(context, "Ошибка сохранения оценки", Toast.LENGTH_SHORT).show()
+                                                }
                                             }
                                         }
-                                    }
-                                )
-                            }
+                                    )
+                                }
+                            if (divisionId == 458)
+                                (1..5).forEach { value ->
+                                    DropdownMenuItem(
+                                        modifier = Modifier.background(Color.White),
+                                        text = { Text(value.toString()) },
+                                        onClick = {
+                                            mark4 = value
+                                            mark4Expanded = false
+
+                                            val now = java.util.Calendar.getInstance()
+                                            val key = "${now.get(java.util.Calendar.SECOND)}${now.get(java.util.Calendar.MILLISECOND)}"
+
+                                            val body: Map<String, Any?> = mapOf(
+                                                "marks" to mapOf(
+                                                    key to mapOf(
+                                                        "type" to 4,
+                                                        "mark" to value,
+                                                        "vizit" to stud.id_vizit,
+                                                    )
+                                                ),
+                                                "schedule" to stud.id_rasp
+                                            )
+                                            coroutineScope.launch {
+                                                val success = attendanceRepository.setMark(divisionId, body)
+                                                withContext(Dispatchers.Main) {
+                                                    if (!success)
+                                                        Toast.makeText(context, "Ошибка сохранения оценки", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
                         }
                     }
                 }

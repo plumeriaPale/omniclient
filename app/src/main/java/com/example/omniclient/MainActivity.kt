@@ -1,5 +1,7 @@
 package com.example.omniclient
 
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -48,16 +50,36 @@ import com.example.omniclient.components.NavigationDrawer
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.work.Configuration
+import androidx.work.WorkManager
+import com.example.omniclient.api.AcademyClient
 import com.example.omniclient.api.CollegeClient
+import com.example.omniclient.data.NotDoneTasksData
+import com.example.omniclient.data.NotDoneTasksRepository
 import com.example.omniclient.data.db.DatabaseProvider
 import com.example.omniclient.screens.SettingsScreen
+import com.example.omniclient.ui.ReviewsScreen.ReviewsScreen
 import com.example.omniclient.ui.attendance.AttendanceScreen
 import com.example.omniclient.ui.homework.HomeworkScreen
+import android.Manifest
 
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    101 // requestCode
+                )
+            }
+        }
+        //WorkManager.initialize(this, Configuration.Builder().build())
 
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             Log.e("GlobalException", "Uncaught exception in thread "+thread.name, throwable)
@@ -114,8 +136,24 @@ fun MyApp() {
     val allUsers by loginViewModel.allUsers.collectAsState()
     val triedAutoLogin by loginViewModel.triedAutoLogin.collectAsState()
 
+    val notDoneTasksRepository = remember {
+        NotDoneTasksRepository(
+            academyClient = AcademyClient,
+            collegeClient = CollegeClient
+        )
+    }
+    val notDoneTasksData = remember { mutableStateOf<NotDoneTasksData?>(null) }
+
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val gesturesEnabled = navBackStackEntry?.destination?.route != "login"
+
+    LaunchedEffect(drawerState.isOpen) {
+        if (drawerState.isOpen) {
+            // Обновляем данные для обоих divisionId
+            loginViewModel.loadAllNotDoneTasks()
+        }
+    }
 
     LaunchedEffect(Unit) {
         val savedUsername = loginViewModel.authPreferences.getUsername()
@@ -123,6 +161,7 @@ fun MyApp() {
         if (!savedUsername.isNullOrEmpty()) {
             loginViewModel.loadScheduleFromDbForUser(savedUsername)
         }
+
         Log.d("Dev:Login", "tryAutoLogin")
         if (!triedAutoLogin && !savedUsername.isNullOrEmpty() && !savedPassword.isNullOrEmpty()) {
             Log.d("Dev:Login", "tryAutoLogin first if")
@@ -130,6 +169,7 @@ fun MyApp() {
                 onAutoLoginSuccess = {
                     Log.d("Dev:Login", "tryAutoLogin success")
                     didNavigateToSchedule = false
+
                     //navController.navigate("schedule") {
                         //popUpTo("login") { inclusive = true }
                     //}
@@ -266,14 +306,13 @@ fun MyApp() {
                     userDao = DatabaseProvider.getDatabase(context).userDao()
                 )
             }
+            composable("reviews") {
+                ReviewsScreen(
+                    navController = navController,
+                    openDrawer = { scope.launch { drawerState.open() } },
+                    loginViewModel = loginViewModel
+                )
+            }
         }
     }
-
-    /*
-    if (responseText.isNotEmpty()) {
-        LaunchedEffect(responseText) {
-            Toast.makeText(context, responseText, Toast.LENGTH_SHORT).show()
-        }
-    }
-    */
 }

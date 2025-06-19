@@ -34,11 +34,14 @@ import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.TextField
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
@@ -71,6 +74,16 @@ fun NavigationDrawer(
     loginViewModel: LoginViewModel,
     content: @Composable () -> Unit
 ) {
+    // Собираем состояния счетчиков (уже суммированные)
+    val newHomeworkCount by loginViewModel.newHomeworkCount.collectAsState()
+    val notDoneTasksCount by loginViewModel.notDoneTasksCount.collectAsState()
+
+    // Вычисляем общее количество задач для бейджа
+    val totalTasksCount = newHomeworkCount + notDoneTasksCount
+
+    // Собираем состояние счетчика отзывов
+    val reviewsCount by loginViewModel.reviewsCount.collectAsState()
+
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
     val miniProfile by loginViewModel.miniProfile.collectAsState()
 
@@ -182,10 +195,11 @@ fun NavigationDrawer(
                             }
                         }
                     }
+
                     Column(modifier = Modifier.weight(1f)) {
                         NavigationDrawerItem(
                             icon = { Icon(Icons.Default.DateRange, contentDescription = null, tint = if (currentRoute == "schedule") Color(0xFFDB173F) else Color.Black) },
-                            label = { Text("Расписание") },
+                            label = { Text(" Расписание") },
                             selected = currentRoute == "schedule",
                             onClick = {
                                 navController.navigate("schedule") {
@@ -200,8 +214,29 @@ fun NavigationDrawer(
                             shape = RectangleShape
                         )
                         NavigationDrawerItem(
-                            icon = { Icon(Icons.Default.Home, contentDescription = null, tint = if (currentRoute == "homework") Color(0xFFDB173F) else Color.Black) },
-                            label = { Text("ДЗ") },
+                            icon = {
+                                BadgedBox(
+                                    badge = {
+                                        if (newHomeworkCount > 0) {
+                                            Badge {
+                                                if (newHomeworkCount < 100)
+                                                    Text(newHomeworkCount.toString())
+                                                else
+                                                    Text("99+")
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.Default.Home,
+                                        contentDescription = null,
+                                        tint = if (currentRoute == "homework") Color(0xFFDB173F) else Color.Black
+                                    )
+                                }
+                            },
+                            label = {
+                                Text(" ДЗ")
+                            },
                             selected = currentRoute == "homework",
                             onClick = {
                                 navController.navigate("homework") {
@@ -217,7 +252,7 @@ fun NavigationDrawer(
                         )
                         NavigationDrawerItem(
                             icon = { Icon(Icons.Default.Settings, contentDescription = null, tint = if (currentRoute == "settings") Color(0xFFDB173F) else Color.Black) },
-                            label = { Text("Настройки") },
+                            label = { Text(" Настройки") },
                             selected = currentRoute == "settings",
                             onClick = {
                                 navController.navigate("settings") {
@@ -231,9 +266,10 @@ fun NavigationDrawer(
                             ),
                             shape = RectangleShape
                         )
+                        /*
                         NavigationDrawerItem(
                             icon = { Icon(Icons.Outlined.Person, contentDescription = null, tint = if (currentRoute == "profile") Color(0xFFDB173F) else Color.Black) },
-                            label = { Text("Профиль") },
+                            label = { Text(" Профиль") },
                             selected = currentRoute == "homework",
                             onClick = {
 
@@ -245,10 +281,51 @@ fun NavigationDrawer(
                             ),
                             shape = RectangleShape
                         )
+                        */
+
+                        //ОТЗЫВЫ
+                        NavigationDrawerItem(
+                            icon = {
+                                BadgedBox(
+                                    badge = {
+                                        if (reviewsCount > 0) {
+                                            Badge {
+                                                if (reviewsCount < 100)
+                                                    Text(reviewsCount.toString())
+                                                else
+                                                    Text("99+")
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.Default.AccountBox,
+                                        contentDescription = null,
+                                        tint = if (currentRoute == "reviews") Color(0xFFDB173F) else Color.Black
+                                    )
+                                }
+                            },
+                            label = {
+                                Text(" Отзывы")
+                            },
+                            selected = currentRoute == "reviews",
+                            onClick = {
+                                navController.navigate("reviews") {
+                                    // Настройки навигации
+                                    launchSingleTop = true
+                                }
+                                scope.launch { drawerState.close() }
+                            },
+                            colors = NavigationDrawerItemDefaults.colors(
+                                selectedContainerColor = Color(0x00FFFFFF),
+                                unselectedContainerColor = Color(0x00FFFFFF),
+                            ),
+                            shape = RectangleShape
+                        )
                     }
                     NavigationDrawerItem(
                         icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = Color.Black) },
-                        label = { Text("Выйти") },
+                        label = { Text(" Выйти") },
                         selected = currentRoute == "homework",
                         onClick = {
                             loginViewModel.logout()

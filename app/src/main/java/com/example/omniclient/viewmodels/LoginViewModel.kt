@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import android.util.Log
+import android.widget.Toast
 import com.example.omniclient.api.ApiService
 import com.example.omniclient.api.LoginFormData
 import com.example.omniclient.api.LoginRequest
@@ -32,6 +33,14 @@ import com.example.omniclient.api.CollegeClient
 import com.example.omniclient.api.academyCookieJar
 import com.example.omniclient.api.collegeCookieJar
 import com.example.omniclient.api.ProfileResponse
+import com.example.omniclient.api.SmartLoginApiService
+import com.example.omniclient.data.NotDoneTasksData
+import com.example.omniclient.data.NotDoneTasksRepository
+import com.example.omniclient.data.Student
+import com.example.omniclient.ui.ReviewsScreen.ReviewSendQueue
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 
 class LoginViewModel(
     private val context: Context,
@@ -118,6 +127,42 @@ class LoginViewModel(
     init {
         loadAllUsers()
     }
+    private val _academyReviews = MutableStateFlow<List<Student>?>(null)
+    private val _collegeReviews = MutableStateFlow<List<Student>?>(null)
+
+    val academyReviews: StateFlow<List<Student>?> = _academyReviews.asStateFlow()
+    val collegeReviews: StateFlow<List<Student>?> = _collegeReviews.asStateFlow()
+
+    // Функция для отправки отзыва
+    fun sendReview(student: Student, comment: String, divisionId: Int) {
+        ReviewSendQueue.enqueue(
+            task = ReviewSendQueue.ReviewSendTask(student, comment, divisionId),
+            onSuccess = { task ->
+                // Удаляем студента после успешной отправки
+                removeStudent(task.student.id_stud, task.divisionId)
+            },
+            onFail = { task ->
+                // Обработка ошибки
+                Log.d("Dev: sendReview", "Ошибка отправки отзыва: $task")
+            }
+        )
+    }
+
+    // Функция для удаления студента
+    fun removeStudent(studentId: String, divisionId: Int) {
+        viewModelScope.launch {
+            if (divisionId == 74) {
+                _academyReviews.value = _academyReviews.value?.filter { it.id_stud != studentId }
+            } else {
+                _collegeReviews.value = _collegeReviews.value?.filter { it.id_stud != studentId }
+            }
+
+            // Обновляем счетчик
+            val totalReviews = (_academyReviews.value?.size ?: 0) +
+                    (_collegeReviews.value?.size ?: 0)
+            _reviewsCount.value = totalReviews
+        }
+    }
 
     fun onUsernameChange(newUsername: String) {
         _username.value = newUsername
@@ -158,7 +203,7 @@ class LoginViewModel(
                     } else {
                         _responseText.value = "Авторизация успешна, но не удалось получить CSRF-токен."
                     }
-
+                    loadAllNotDoneTasks()
                     loadAllUsers()
 
                 } else {
@@ -171,6 +216,55 @@ class LoginViewModel(
             }
         }
     }
+
+    // Добавляем состояния для счетчиков обоих divisionId
+    private val _academyNotDoneTasks = MutableStateFlow<NotDoneTasksData?>(null)
+    private val _collegeNotDoneTasks = MutableStateFlow<NotDoneTasksData?>(null)
+
+    // Вычисляемые свойства для суммированных значений
+    val newHomeworkCount: StateFlow<Int> = combine(_academyNotDoneTasks, _collegeNotDoneTasks) { academy, college ->
+        (academy?.newHomework ?: 0) + (college?.newHomework ?: 0)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+    val notDoneTasksCount: StateFlow<Int> = combine(_academyNotDoneTasks, _collegeNotDoneTasks) { academy, college ->
+        (academy?.notDoneTasks ?: 0) + (college?.notDoneTasks ?: 0)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+
+    // Репозиторий для получения данных
+    private val notDoneTasksRepository = NotDoneTasksRepository(
+        academyClient = AcademyClient,
+        collegeClient = CollegeClient
+    )
+
+    private val _reviewsCount = MutableStateFlow(0)
+    val reviewsCount: StateFlow<Int> = _reviewsCount
+
+    fun loadAllNotDoneTasks() {
+        viewModelScope.launch {
+            try {
+                val academyDeferred = async { notDoneTasksRepository.getNotDoneTasks(74) }
+                val collegeDeferred = async { notDoneTasksRepository.getNotDoneTasks(458) }
+
+                val academyData = academyDeferred.await()
+                val collegeData = collegeDeferred.await()
+
+                _academyNotDoneTasks.value = academyData
+                _collegeNotDoneTasks.value = collegeData
+
+                _academyReviews.value = academyData?.reviewsData?.students_list ?: emptyList()
+                _collegeReviews.value = collegeData?.reviewsData?.students_list ?: emptyList()
+
+                val totalReviews = (_academyReviews.value?.size ?: 0) + (_collegeReviews.value?.size ?: 0)
+                _reviewsCount.value = totalReviews
+            } catch (e: Exception) {
+                Log.e("NotDoneTasks", "Error loading tasks", e)
+            }
+        }
+    }
+
+    fun getAcademyReviews(): List<Student>? = _academyReviews.value
+    fun getCollegeReviews(): List<Student>? = _collegeReviews.value
 
     fun autoLoginIfPossible(onAutoLoginSuccess: () -> Unit, onAutoLoginFailed: (() -> Unit)? = null) {
         Log.d("Dev: Login", "autoLoginIfPossible")
@@ -199,11 +293,16 @@ class LoginViewModel(
                             withContext(Dispatchers.IO) {
                                 userDao.insertUser(UserEntity(username, password))
                             }
+                            loadAllNotDoneTasks()
+
+
+
                             // Параллельно получаем расписания
-                            val academyScheduleDeferred = async { com.example.omniclient.api.AcademyClient.getSchedule("", com.example.omniclient.api.ScheduleRequest(0)).body() }
-                            val collegeScheduleDeferred = async { com.example.omniclient.api.CollegeClient.getSchedule("", com.example.omniclient.api.ScheduleRequest(0)).body() }
+                            val academyScheduleDeferred = async { AcademyClient.getSchedule("", com.example.omniclient.api.ScheduleRequest(0)).body() }
+                            val collegeScheduleDeferred = async { CollegeClient.getSchedule("", com.example.omniclient.api.ScheduleRequest(0)).body() }
                             val academySchedule = academyScheduleDeferred.await()
                             val collegeSchedule = collegeScheduleDeferred.await()
+
 
                             Log.d("Dev: Login", "Academy schedule: ${academySchedule}")
                             Log.d("Dev: Login", "College schedule: ${collegeSchedule}")
@@ -274,6 +373,7 @@ class LoginViewModel(
             val collegeOk = collegeResp.isSuccessful
             if (academyOk || collegeOk) {
                 loadMiniProfile()
+                loadAllNotDoneTasks()
                 Log.d("Dev:LoginViewModel", "[selectUser] Success for user: ${user.username}")
                 onAutoLoginSuccess()
             } else {

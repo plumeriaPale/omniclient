@@ -35,6 +35,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -57,6 +59,18 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val navController = rememberNavController()
+    val settingsViewModel: SettingsViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return SettingsViewModel(context) as T
+            }
+        }
+    )
+
+    val backgroundModeEnabled by settingsViewModel.backgroundModeEnabled.collectAsState()
+    val homeworkNotificationsEnabled by settingsViewModel.homeworkNotificationsEnabled.collectAsState()
+    val reviewsNotificationsEnabled by settingsViewModel.reviewsNotificationsEnabled.collectAsState()
 
     Scaffold(
         topBar = {
@@ -72,7 +86,6 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Переносим NavHost сюда - он будет единственным источником контента
             NavHost(
                 navController = navController,
                 startDestination = "main_settings",
@@ -84,15 +97,63 @@ fun SettingsScreen(
                 composable("user_settings") {
                     UserSettingsScreen(navController, userDao = userDao)
                 }
+                composable("background_settings") {
+                    BackgroundSettingsScreen(
+                        outerNavController = navController,
+                        backgroundModeEnabled = backgroundModeEnabled,
+                        homeworkNotificationsEnabled = homeworkNotificationsEnabled,
+                        reviewsNotificationsEnabled = reviewsNotificationsEnabled,
+                        onBackgroundModeChanged = { settingsViewModel.setBackgroundModeEnabled(it) },
+                        onHomeworkNotificationsChanged = { settingsViewModel.setHomeworkNotificationsEnabled(it) },
+                        onReviewsNotificationsChanged = { settingsViewModel.setReviewsNotificationsEnabled(it) }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun MainSettingsScreen(navController: NavController) {
-    var darkThemeEnabled by remember { mutableStateOf(false) }
+fun BackgroundSettingsScreen(
+    outerNavController: NavController,
+    backgroundModeEnabled: Boolean,
+    homeworkNotificationsEnabled: Boolean,
+    reviewsNotificationsEnabled: Boolean,
+    onBackgroundModeChanged: (Boolean) -> Unit,
+    onHomeworkNotificationsChanged: (Boolean) -> Unit,
+    onReviewsNotificationsChanged: (Boolean) -> Unit
+) {
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        item { SettingsHeader(title = "Уведомления") }
+        item {
+            SwitchSetting(
+                title = "Фоновый режим работы",
+                checked = backgroundModeEnabled,
+                onCheckedChange = onBackgroundModeChanged,
+                checkable = true
+            )
+        }
+        item {
+            SwitchSetting(
+                title = "Уведомления о новых ДЗ",
+                checked = homeworkNotificationsEnabled,
+                onCheckedChange = onHomeworkNotificationsChanged,
+                checkable = backgroundModeEnabled
+            )
+        }
+        item {
+            SwitchSetting(
+                title = "Уведомления о новых отзывах",
+                checked = reviewsNotificationsEnabled,
+                onCheckedChange = onReviewsNotificationsChanged,
+                checkable = backgroundModeEnabled
+            )
+        }
+    }
+}
 
+@Composable
+fun MainSettingsScreen(navController: NavController) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         // Группа "Общие"
         item { SettingsHeader(title = "Общие") }
@@ -100,6 +161,12 @@ fun MainSettingsScreen(navController: NavController) {
             ClickableSetting(
                 title = "Пользователи",
                 onClick = { navController.navigate("user_settings") }
+            )
+        }
+        item {
+            ClickableSetting(
+                title = "Уведомления",
+                onClick = { navController.navigate("background_settings") }
             )
         }
     }
@@ -215,17 +282,16 @@ fun ClickableSetting(title: String, onClick: () -> Unit) {
 }
 
 @Composable
-fun SwitchSetting(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+fun SwitchSetting(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit, checkable: Boolean) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(text = title, style = MaterialTheme.typography.bodyLarge)
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(enabled = checkable, checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
@@ -238,3 +304,4 @@ fun SettingsHeader(title: String) {
         color = MaterialTheme.colorScheme.primary
     )
 }
+

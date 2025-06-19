@@ -1,6 +1,7 @@
 package com.example.omniclient.api
 
 import android.util.Log
+import com.google.gson.annotations.SerializedName
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
@@ -105,8 +106,25 @@ interface ApiService {
         "X-Requested-With: XMLHttpRequest"
     )
 
-
     suspend fun getProfile(): Response<ProfileResponse>
+
+    @POST("tasks/not-done-tasks")
+    @Headers(
+        "Content-Type: application/json;charset=UTF-8",
+        "Accept: application/json",
+        "X-Requested-With: XMLHttpRequest"
+    )
+    suspend fun getNotDoneTasks(): Response<ResponseBody>
+
+    @POST("students/set-comment")
+    @Headers(
+        "Content-Type: application/json;charset=UTF-8",
+        "Accept: application/json",
+        "X-Requested-With: XMLHttpRequest"
+    )
+    suspend fun sendReview(
+        @Body request: ReviewRequest
+    ): Response<ResponseBody>
 }
 
 interface SmartLoginApiService : ApiService {
@@ -209,6 +227,12 @@ val CollegeClient: SmartLoginApiService = CollegeClientImpl(buildApiServiceWithU
 
 data class ProfileResponse(
     val teach_info: TeachInfo?
+)
+
+data class ReviewRequest(
+    @SerializedName("stud") val studentId: String,
+    @SerializedName("comment") val comment: String,
+    @SerializedName("spec") val specializationId: String
 )
 
 data class TeachInfo(
